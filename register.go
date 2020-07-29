@@ -1,35 +1,27 @@
 package sevenzip
 
 import (
-	"bytes"
-	"compress/bzip2"
-	"encoding/binary"
 	"io"
 	"sync"
 
 	"github.com/bodgit/sevenzip/internal/aes7z"
-	"github.com/ulikunitz/xz/lzma"
+	"github.com/bodgit/sevenzip/internal/bzip2"
+	"github.com/bodgit/sevenzip/internal/lzma"
 )
 
-type Decompressor func([]byte, uint64, io.Reader) (io.Reader, error)
+type Decompressor func([]byte, uint64, io.ReadCloser) (io.ReadCloser, error)
 
 var decompressors sync.Map
 
 func init() {
-	// Copy
-	RegisterDecompressor([]byte{0x00}, Decompressor(func(_ []byte, _ uint64, r io.Reader) (io.Reader, error) {
-		return r, nil
+	// Copy (just return the passed io.ReadCloser)
+	RegisterDecompressor([]byte{0x00}, Decompressor(func(_ []byte, _ uint64, rc io.ReadCloser) (io.ReadCloser, error) {
+		return rc, nil
 	}))
 	// LZMA
-	RegisterDecompressor([]byte{0x03, 0x01, 0x01}, Decompressor(func(p []byte, s uint64, r io.Reader) (io.Reader, error) {
-		h := bytes.NewBuffer(p)
-		_ = binary.Write(h, binary.LittleEndian, s)
-		return lzma.NewReader(io.MultiReader(h, r))
-	}))
+	RegisterDecompressor([]byte{0x03, 0x01, 0x01}, Decompressor(lzma.NewReader))
 	// Bzip2
-	RegisterDecompressor([]byte{0x04, 0x02, 0x02}, Decompressor(func(_ []byte, _ uint64, r io.Reader) (io.Reader, error) {
-		return bzip2.NewReader(r), nil
-	}))
+	RegisterDecompressor([]byte{0x04, 0x02, 0x02}, Decompressor(bzip2.NewReader))
 	// AES-CBC-256 & SHA-256
 	RegisterDecompressor([]byte{0x06, 0xf1, 0x07, 0x01}, Decompressor(aes7z.NewReader))
 }

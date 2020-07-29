@@ -5,6 +5,8 @@ import (
 	"hash/crc32"
 	"io"
 	"time"
+
+	"github.com/bodgit/plumbing"
 )
 
 const (
@@ -40,6 +42,11 @@ var (
 	signature = []byte{'7', 'z', 0xbc, 0xaf, 0x27, 0x1c}
 )
 
+type cryptoReadCloser interface {
+	io.ReadCloser
+	Password(string) error
+}
+
 type signatureHeader struct {
 	Signature [6]byte
 	Major     byte
@@ -72,10 +79,11 @@ type bindPair struct {
 }
 
 type folder struct {
-	coder    []*coder
-	bindPair []*bindPair
-	size     []uint64
-	packed   []uint64
+	packedStreams uint64
+	coder         []*coder
+	bindPair      []*bindPair
+	size          []uint64
+	packed        []uint64
 }
 
 func (f *folder) findInBindPair(i uint64) *bindPair {
@@ -96,60 +104,36 @@ func (f *folder) findOutBindPair(i uint64) *bindPair {
 	return nil
 }
 
-type folderReader struct {
-	h hash.Hash
-	r io.Reader
-}
-
-func (fr *folderReader) Read(p []byte) (int, error) {
-	return fr.r.Read(p)
-}
-
-func (fr *folderReader) CRC32() []byte {
-	return fr.h.Sum(nil)
-}
-
-func (f *folder) reader(r io.Reader, password string) (*folderReader, error) {
-	dcomp := decompressor(f.coder[0].id)
+func (f *folder) coderReader(rc io.ReadCloser, coder uint64, password string) (io.ReadCloser, error) {
+	dcomp := decompressor(f.coder[coder].id)
 	if dcomp == nil {
 		return nil, errAlgorithm
 	}
-	rc, err := dcomp(f.coder[0].properties, f.size[0], r)
+	cr, err := dcomp(f.coder[coder].properties, f.size[coder], rc)
 	if err != nil {
 		return nil, err
 	}
 
-	if cr, ok := rc.(cryptoReader); ok {
-		if err = cr.Password(password); err != nil {
+	if crc, ok := cr.(cryptoReadCloser); ok {
+		if err = crc.Password(password); err != nil {
 			return nil, err
 		}
 	}
 
-	rc = io.LimitReader(rc, int64(f.size[0]))
+	return plumbing.LimitReadCloser(cr, int64(f.size[coder])), nil
+}
+
+func (f *folder) reader(rc io.ReadCloser, password string) (io.ReadCloser, error) {
+	fr, err := f.coderReader(rc, 0, password)
+	if err != nil {
+		return nil, err
+	}
 
 	for _, bp := range f.bindPair {
-		dcomp := decompressor(f.coder[bp.in].id)
-		if dcomp == nil {
-			return nil, errAlgorithm
-		}
-		rc, err = dcomp(f.coder[bp.in].properties, f.size[bp.in], rc)
-		if err != nil {
+		if fr, err = f.coderReader(fr, bp.in, password); err != nil {
 			return nil, err
 		}
-
-		if cr, ok := rc.(cryptoReader); ok {
-			if err = cr.Password(password); err != nil {
-				return nil, err
-			}
-		}
-
-		rc = io.LimitReader(rc, int64(f.size[bp.in]))
 	}
-
-	fr := new(folderReader)
-
-	fr.h = crc32.NewIEEE()
-	fr.r = io.TeeReader(rc, fr.h)
 
 	return fr, nil
 }
@@ -172,14 +156,6 @@ type unpackInfo struct {
 	defined []bool
 }
 
-func (ui *unpackInfo) folderReader(f int, r io.Reader, password string) (*folderReader, uint32, error) {
-	fr, err := ui.folder[f].reader(r, password)
-	if err != nil {
-		return nil, 0, err
-	}
-	return fr, ui.digest[f], nil
-}
-
 type subStreamsInfo struct {
 	streams []uint64
 	size    []uint64
@@ -191,6 +167,52 @@ type streamsInfo struct {
 	packInfo       *packInfo
 	unpackInfo     *unpackInfo
 	subStreamsInfo *subStreamsInfo
+}
+
+func (si *streamsInfo) FolderOffset(folder int) int64 {
+	offset := uint64(0)
+	for i, k := 0, uint64(0); i < folder; i++ {
+		for j := k; j < k+si.unpackInfo.folder[i].packedStreams; j++ {
+			offset += si.packInfo.size[j]
+		}
+		k += si.unpackInfo.folder[i].packedStreams
+	}
+	return int64(si.packInfo.position + offset)
+}
+
+type crcReadCloser struct {
+	rc io.ReadCloser
+	h  hash.Hash
+}
+
+func (rc *crcReadCloser) Read(p []byte) (int, error) {
+	return rc.rc.Read(p)
+}
+
+func (rc *crcReadCloser) Close() error {
+	return rc.rc.Close()
+}
+
+func (rc *crcReadCloser) Checksum() []byte {
+	return rc.h.Sum(nil)
+}
+
+func newCRCReadCloser(rc io.ReadCloser) io.ReadCloser {
+	nrc := new(crcReadCloser)
+	nrc.h = crc32.NewIEEE()
+	nrc.rc = plumbing.TeeReadCloser(rc, nrc.h)
+	return nrc
+}
+
+func (si *streamsInfo) FolderReader(rc io.ReadCloser, folder int, password string) (io.ReadCloser, uint32, error) {
+	fr, err := si.unpackInfo.folder[folder].reader(rc, password)
+	if err != nil {
+		return nil, 0, err
+	}
+	if si.unpackInfo.digest != nil {
+		return newCRCReadCloser(fr), si.unpackInfo.digest[folder], nil
+	}
+	return fr, 0, nil
 }
 
 type file struct {

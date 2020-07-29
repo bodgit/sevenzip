@@ -30,9 +30,11 @@ var (
 )
 
 type Reader struct {
-	r    io.ReaderAt
-	p    string
-	File []*File
+	r     io.ReaderAt
+	start int64
+	end   int64
+	p     string
+	File  []*File
 }
 
 type ReadCloser struct {
@@ -45,9 +47,9 @@ type headerReader interface {
 	io.ByteReader
 }
 
-type cryptoReader interface {
-	io.Reader
-	Password(string) error
+type checksumReadCloser interface {
+	io.ReadCloser
+	Checksum() []byte
 }
 
 type FileHeader struct {
@@ -322,9 +324,9 @@ func readFolder(hr headerReader) (*folder, error) {
 		}
 	}
 
-	packedStreams := in - bindPairs
+	f.packedStreams = in - bindPairs
 
-	if packedStreams == 1 {
+	if f.packedStreams == 1 {
 		f.packed = []uint64{}
 		for i := uint64(0); i < in; i++ {
 			if f.findInBindPair(i) == nil {
@@ -332,8 +334,8 @@ func readFolder(hr headerReader) (*folder, error) {
 			}
 		}
 	} else {
-		f.packed = make([]uint64, packedStreams)
-		for i := uint64(0); i < packedStreams; i++ {
+		f.packed = make([]uint64, f.packedStreams)
+		for i := uint64(0); i < f.packedStreams; i++ {
 			if f.packed[i], err = readUint64(hr); err != nil {
 				return nil, err
 			}
@@ -809,6 +811,19 @@ func readHeader(hr headerReader) (*header, error) {
 	return h, nil
 }
 
+func (z *Reader) folderReader(si *streamsInfo, f int) (io.ReadCloser, uint32, error) {
+	// Create a SectionReader covering all of the streams data
+	sr := io.NewSectionReader(z.r, z.start, z.end)
+
+	// Seek to where the folder in this particular stream starts
+	if _, err := sr.Seek(si.FolderOffset(f), io.SeekStart); err != nil {
+		return nil, 0, err
+	}
+
+	// Adding buffering here makes a noticeable performance difference
+	return si.FolderReader(ioutil.NopCloser(bufio.NewReader(sr)), f, z.p)
+}
+
 func (z *Reader) init(r io.ReaderAt, size int64) error {
 	h := crc32.NewIEEE()
 	tra := plumbing.TeeReaderAt(r, h)
@@ -827,8 +842,9 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 
 	h.Reset()
 
+	var err error
 	var start startHeader
-	if err := binary.Read(sr, binary.LittleEndian, &start); err != nil {
+	if err = binary.Read(sr, binary.LittleEndian, &start); err != nil {
 		return err
 	}
 
@@ -838,25 +854,19 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	}
 
 	// Work out where we are in the file (32, avoiding magic numbers)
-	so, err := sr.Seek(0, io.SeekCurrent)
-	if err != nil {
+	if z.start, err = sr.Seek(0, io.SeekCurrent); err != nil {
 		return err
 	}
 
 	// Seek over the streams
-	ho, err := sr.Seek(int64(start.Offset), io.SeekCurrent)
-	if err != nil {
+	if z.end, err = sr.Seek(int64(start.Offset), io.SeekCurrent); err != nil {
 		return err
 	}
-
-	// Create a SectionReader covering the streams. This means any offsets
-	// in the headers should JFW
-	sr = io.NewSectionReader(r, so, ho-so)
 
 	h.Reset()
 
 	// Bound bufio.Reader otherwise it can read trailing garbage which screws up the CRC check
-	br := bufio.NewReader(io.NewSectionReader(tra, ho, int64(start.Size)))
+	br := bufio.NewReader(io.NewSectionReader(tra, z.end, int64(start.Size)))
 
 	id, err := br.ReadByte()
 	if err != nil {
@@ -895,23 +905,20 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	if id == idEncodedHeader && streamsInfo != nil {
 		spew.Dump(streamsInfo)
 
-		if _, err := sr.Seek(int64(streamsInfo.packInfo.position), io.SeekStart); err != nil {
-			return err
-		}
+		// XXX Assert there's only one folder?
 
-		fr, crc, err := streamsInfo.unpackInfo.folderReader(0, sr, z.p)
+		fr, crc, err := z.folderReader(streamsInfo, 0)
 		if err != nil {
 			return err
 		}
+		defer fr.Close()
 
 		br = bufio.NewReader(fr)
 
-		id, err = br.ReadByte()
-		if err != nil {
-			return err
-		}
-
-		if id != idHeader {
+		if id, err = br.ReadByte(); err != nil || id != idHeader {
+			if err != nil {
+				return err
+			}
 			return errUnexpectedID
 		}
 
@@ -919,8 +926,10 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 			return err
 		}
 
-		if crc32Compare(fr.CRC32(), crc) != 0 {
-			return errChecksum
+		if cr, ok := fr.(checksumReadCloser); ok && crc != 0 {
+			if crc32Compare(cr.Checksum(), crc) != 0 {
+				return errChecksum
+			}
 		}
 	}
 

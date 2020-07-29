@@ -19,9 +19,11 @@ func TestOpenReader(t *testing.T) {
 
 	for name, table := range tables {
 		t.Run(name, func(t *testing.T) {
-			if _, err := OpenReader(filepath.Join("testdata", table.file)); err != nil {
+			r, err := OpenReader(filepath.Join("testdata", table.file))
+			if err != nil {
 				t.Fatal(err)
 			}
+			defer r.Close()
 		})
 	}
 }
@@ -43,9 +45,11 @@ func TestOpenReaderWithPassword(t *testing.T) {
 
 	for name, table := range tables {
 		t.Run(name, func(t *testing.T) {
-			if _, err := OpenReaderWithPassword(filepath.Join("testdata", table.file), table.password); err != nil {
+			r, err := OpenReaderWithPassword(filepath.Join("testdata", table.file), table.password)
+			if err != nil {
 				t.Fatal(err)
 			}
+			defer r.Close()
 		})
 	}
 }

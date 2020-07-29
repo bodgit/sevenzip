@@ -1,5 +1,5 @@
-github.com/bodgit/plumbing v1.0.0 h1:4syB2mVNue+0ugZwnA2lJ9ZjGC6GLuoUnyVasV6JnMQ=
-github.com/bodgit/plumbing v1.0.0/go.mod h1:HvY/F2JCfHpm7AxnSMjhRl8QGDCmEvke8F9e3vbLRhY=
+github.com/bodgit/plumbing v1.1.0 h1:lesbixvHgSBQFNMsrjdPNsm+EBk4vFFhxWl0+90vDY0=
+github.com/bodgit/plumbing v1.1.0/go.mod h1:HvY/F2JCfHpm7AxnSMjhRl8QGDCmEvke8F9e3vbLRhY=
 github.com/bodgit/windows v1.0.0 h1:rLQ/XjsleZvx4fR1tB/UxQrK+SJ2OFHzfPjLWWOhDIA=
 github.com/bodgit/windows v1.0.0/go.mod h1:a6JLwrB4KrTR5hBpp8FI9/9W9jJfeQ2h4XDXU74ZCdM=
 github.com/connesc/cipherio v0.2.1 h1:FGtpTPMbKNNWByNrr9aEBtaJtXjqOzkIXNYJp6OEycw=

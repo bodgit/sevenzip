@@ -9,29 +9,34 @@ import (
 	"github.com/connesc/cipherio"
 )
 
-type reader struct {
-	r, br    io.Reader
+type readCloser struct {
+	rc       io.ReadCloser
+	br       io.Reader
 	salt, iv []byte
 	cycles   int
 }
 
-func (r *reader) Password(p string) error {
-	block, err := aes.NewCipher(calculateKey(p, r.cycles, r.salt))
+func (rc *readCloser) Close() error {
+	return rc.rc.Close()
+}
+
+func (rc *readCloser) Password(p string) error {
+	block, err := aes.NewCipher(calculateKey(p, rc.cycles, rc.salt))
 	if err != nil {
 		return err
 	}
-	r.br = cipherio.NewBlockReader(r.r, cipher.NewCBCDecrypter(block, r.iv))
+	rc.br = cipherio.NewBlockReader(rc.rc, cipher.NewCBCDecrypter(block, rc.iv))
 	return nil
 }
 
-func (r *reader) Read(p []byte) (int, error) {
-	if r.br == nil {
+func (rc *readCloser) Read(p []byte) (int, error) {
+	if rc.br == nil {
 		return 0, errors.New("sevenzip: no password set")
 	}
-	return r.br.Read(p)
+	return rc.br.Read(p)
 }
 
-func NewReader(p []byte, _ uint64, r io.Reader) (io.Reader, error) {
+func NewReader(p []byte, _ uint64, rc io.ReadCloser) (io.ReadCloser, error) {
 	// Need at least two bytes initially
 	if len(p) < 2 {
 		return nil, errors.New("sevenzip: not enough properties")
@@ -41,7 +46,7 @@ func NewReader(p []byte, _ uint64, r io.Reader) (io.Reader, error) {
 		return nil, errors.New("sevenzip: unsupported compression method")
 	}
 
-	nr := new(reader)
+	nrc := new(readCloser)
 
 	salt := p[0]>>7&1 + p[1]>>4
 	iv := p[0]>>6&1 + p[1]&0x0f
@@ -49,12 +54,12 @@ func NewReader(p []byte, _ uint64, r io.Reader) (io.Reader, error) {
 		return nil, errors.New("sevenzip: not enough properties")
 	}
 
-	nr.salt = p[2 : 2+salt]
-	nr.iv = make([]byte, 16)
-	copy(nr.iv, p[2+salt:])
+	nrc.salt = p[2 : 2+salt]
+	nrc.iv = make([]byte, 16)
+	copy(nrc.iv, p[2+salt:])
 
-	nr.cycles = int(p[0] & 0x3f)
-	nr.r = r
+	nrc.cycles = int(p[0] & 0x3f)
+	nrc.rc = rc
 
-	return nr, nil
+	return nrc, nil
 }
