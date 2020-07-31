@@ -1,6 +1,7 @@
 package sevenzip
 
 import (
+	"errors"
 	"hash"
 	"hash/crc32"
 	"io"
@@ -74,6 +75,10 @@ type coder struct {
 	properties []byte
 }
 
+func (c *coder) isSimple() bool {
+	return c.in == 1 && c.out == 1
+}
+
 type bindPair struct {
 	in, out uint64
 }
@@ -124,11 +129,20 @@ func (f *folder) coderReader(rc io.ReadCloser, coder uint64, password string) (i
 }
 
 func (f *folder) reader(rc io.ReadCloser, password string) (io.ReadCloser, error) {
+	// XXX We can't currently handle complex coders (>1 in/out stream).
+	// Yes BCJ2, that means you
+	for _, c := range f.coder {
+		if !c.isSimple() {
+			return nil, errors.New("sevenzip: TODO complex coders")
+		}
+	}
+
 	fr, err := f.coderReader(rc, 0, password)
 	if err != nil {
 		return nil, err
 	}
 
+	// XXX I don't think I'm interpreting the bind pairs correctly here
 	for _, bp := range f.bindPair {
 		if fr, err = f.coderReader(fr, bp.in, password); err != nil {
 			return nil, err
