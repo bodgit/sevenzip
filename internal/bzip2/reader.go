@@ -2,25 +2,39 @@ package bzip2
 
 import (
 	"compress/bzip2"
+	"errors"
 	"io"
 )
 
 type readCloser struct {
-	rc io.ReadCloser
-	r  io.Reader
+	c io.Closer
+	r io.Reader
 }
 
 func (rc *readCloser) Close() error {
-	return rc.rc.Close()
+	var err error
+	if rc.c != nil {
+		err = rc.c.Close()
+		rc.c, rc.r = nil, nil
+	}
+	return err
 }
 
 func (rc *readCloser) Read(p []byte) (int, error) {
+	if rc.r == nil {
+		return 0, errors.New("bzip2: Read after Close")
+	}
 	return rc.r.Read(p)
 }
 
-func NewReader(_ []byte, _ uint64, rc io.ReadCloser) (io.ReadCloser, error) {
+// NewReader returns a new bzip2 io.ReadCloser.
+func NewReader(_ []byte, _ uint64, readers ...io.ReadCloser) (io.ReadCloser, error) {
+	if len(readers) != 1 {
+		return nil, errors.New("bzip2: need exactly one reader")
+	}
+
 	return &readCloser{
-		rc: rc,
-		r:  bzip2.NewReader(rc),
+		c: readers[0],
+		r: bzip2.NewReader(readers[0]),
 	}, nil
 }

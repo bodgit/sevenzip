@@ -9,6 +9,8 @@ import (
 	"github.com/connesc/cipherio"
 )
 
+var errProperties = errors.New("aes7z: not enough properties")
+
 type readCloser struct {
 	rc       io.ReadCloser
 	br       io.Reader
@@ -17,7 +19,12 @@ type readCloser struct {
 }
 
 func (rc *readCloser) Close() error {
-	return rc.rc.Close()
+	var err error
+	if rc.rc != nil {
+		err = rc.rc.Close()
+		rc.rc, rc.br = nil, nil
+	}
+	return err
 }
 
 func (rc *readCloser) Password(p string) error {
@@ -30,36 +37,46 @@ func (rc *readCloser) Password(p string) error {
 }
 
 func (rc *readCloser) Read(p []byte) (int, error) {
+	if rc.rc == nil {
+		return 0, errors.New("aes7z: Read after Close")
+	}
 	if rc.br == nil {
-		return 0, errors.New("sevenzip: no password set")
+		return 0, errors.New("aes7z: no password set")
 	}
 	return rc.br.Read(p)
 }
 
-func NewReader(p []byte, _ uint64, rc io.ReadCloser) (io.ReadCloser, error) {
+// NewReader returns a new AES-256-CBC & SHA-256 io.ReadCloser. The Password
+// method must be called before attempting to call Read so that the block
+// cipher is correctly initialised.
+func NewReader(p []byte, _ uint64, readers ...io.ReadCloser) (io.ReadCloser, error) {
+	if len(readers) != 1 {
+		return nil, errors.New("aes7z: need exactly one reader")
+	}
+
 	// Need at least two bytes initially
 	if len(p) < 2 {
-		return nil, errors.New("sevenzip: not enough properties")
+		return nil, errProperties
 	}
 
 	if p[0]&0xc0 == 0 {
-		return nil, errors.New("sevenzip: unsupported compression method")
+		return nil, errors.New("aes7z: unsupported compression method")
 	}
 
-	nrc := new(readCloser)
+	rc := new(readCloser)
 
 	salt := p[0]>>7&1 + p[1]>>4
 	iv := p[0]>>6&1 + p[1]&0x0f
 	if len(p) != int(2+salt+iv) {
-		return nil, errors.New("sevenzip: not enough properties")
+		return nil, errProperties
 	}
 
-	nrc.salt = p[2 : 2+salt]
-	nrc.iv = make([]byte, 16)
-	copy(nrc.iv, p[2+salt:])
+	rc.salt = p[2 : 2+salt]
+	rc.iv = make([]byte, 16)
+	copy(rc.iv, p[2+salt:])
 
-	nrc.cycles = int(p[0] & 0x3f)
-	nrc.rc = rc
+	rc.cycles = int(p[0] & 0x3f)
+	rc.rc = readers[0]
 
-	return nrc, nil
+	return rc, nil
 }
