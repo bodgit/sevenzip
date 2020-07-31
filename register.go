@@ -9,6 +9,7 @@ import (
 	"github.com/bodgit/sevenzip/internal/bzip2"
 	"github.com/bodgit/sevenzip/internal/deflate"
 	"github.com/bodgit/sevenzip/internal/lzma"
+	"github.com/bodgit/sevenzip/internal/lzma2"
 )
 
 // Decompressor describes the function signature that decompression/decryption
@@ -36,6 +37,8 @@ func init() {
 	RegisterDecompressor([]byte{0x04, 0x02, 0x02}, Decompressor(bzip2.NewReader))
 	// AES-CBC-256 & SHA-256
 	RegisterDecompressor([]byte{0x06, 0xf1, 0x07, 0x01}, Decompressor(aes7z.NewReader))
+	// LZMA2
+	RegisterDecompressor([]byte{0x21}, Decompressor(lzma2.NewReader))
 }
 
 // RegisterDecompressor allows custom decompressors for a specified method ID.
