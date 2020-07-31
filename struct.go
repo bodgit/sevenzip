@@ -5,6 +5,8 @@ import (
 	"hash"
 	"hash/crc32"
 	"io"
+	"os"
+	"path"
 	"time"
 
 	"github.com/bodgit/plumbing"
@@ -232,6 +234,7 @@ func (si *streamsInfo) FolderReader(rc io.ReadCloser, folder int, password strin
 type file struct {
 	name                string
 	ctime, atime, mtime time.Time
+	attributes          uint32
 }
 
 type filesInfo struct {
@@ -241,4 +244,116 @@ type filesInfo struct {
 type header struct {
 	streamsInfo *streamsInfo
 	filesInfo   *filesInfo
+}
+
+type FileHeader struct {
+	Name             string
+	Created          time.Time
+	Accessed         time.Time
+	Modified         time.Time
+	Attributes       uint32
+	CRC32            uint32
+	UncompressedSize uint64
+}
+
+func (h *FileHeader) FileInfo() os.FileInfo {
+	return headerFileInfo{h}
+}
+
+type headerFileInfo struct {
+	fh *FileHeader
+}
+
+func (fi headerFileInfo) Name() string {
+	return path.Base(fi.fh.Name)
+}
+
+func (fi headerFileInfo) Size() int64 {
+	return int64(fi.fh.UncompressedSize)
+}
+
+func (fi headerFileInfo) IsDir() bool {
+	return fi.Mode().IsDir()
+}
+
+func (fi headerFileInfo) ModTime() time.Time {
+	return fi.fh.Modified.UTC()
+}
+func (fi headerFileInfo) Mode() os.FileMode {
+	return fi.fh.Mode()
+}
+
+func (fi headerFileInfo) Sys() interface{} {
+	return fi.fh
+}
+
+const (
+	// Unix constants. The specification doesn't mention them,
+	// but these seem to be the values agreed on by tools.
+	s_IFMT   = 0xf000
+	s_IFSOCK = 0xc000
+	s_IFLNK  = 0xa000
+	s_IFREG  = 0x8000
+	s_IFBLK  = 0x6000
+	s_IFDIR  = 0x4000
+	s_IFCHR  = 0x2000
+	s_IFIFO  = 0x1000
+	s_ISUID  = 0x800
+	s_ISGID  = 0x400
+	s_ISVTX  = 0x200
+
+	msdosDir      = 0x10
+	msdosReadOnly = 0x01
+)
+
+func (h *FileHeader) Mode() (mode os.FileMode) {
+	// Prefer the POSIX attributes if they're present
+	if h.Attributes&0xf0000000 != 0 {
+		mode = unixModeToFileMode(h.Attributes >> 16)
+	} else {
+		mode = msdosModeToFileMode(h.Attributes)
+	}
+	return
+}
+
+func msdosModeToFileMode(m uint32) (mode os.FileMode) {
+	if m&msdosDir != 0 {
+		mode = os.ModeDir | 0777
+	} else {
+		mode = 0666
+	}
+	if m&msdosReadOnly != 0 {
+		mode &^= 0222
+	}
+	return mode
+}
+
+func unixModeToFileMode(m uint32) os.FileMode {
+	mode := os.FileMode(m & 0777)
+	switch m & s_IFMT {
+	case s_IFBLK:
+		mode |= os.ModeDevice
+	case s_IFCHR:
+		mode |= os.ModeDevice | os.ModeCharDevice
+	case s_IFDIR:
+		mode |= os.ModeDir
+	case s_IFIFO:
+		mode |= os.ModeNamedPipe
+	case s_IFLNK:
+		mode |= os.ModeSymlink
+	case s_IFREG:
+		// nothing to do
+	case s_IFSOCK:
+		mode |= os.ModeSocket
+	}
+	if m&s_ISGID != 0 {
+		mode |= os.ModeSetgid
+	}
+	if m&s_ISUID != 0 {
+		mode |= os.ModeSetuid
+	}
+	if m&s_ISVTX != 0 {
+		mode |= os.ModeSticky
+	}
+	return mode
 }

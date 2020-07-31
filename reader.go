@@ -52,15 +52,6 @@ type checksumReadCloser interface {
 	Checksum() []byte
 }
 
-type FileHeader struct {
-	Name             string
-	Created          time.Time
-	Accessed         time.Time
-	Modified         time.Time
-	CRC32            uint32
-	UncompressedSize uint64
-}
-
 type File struct {
 	FileHeader
 }
@@ -738,9 +729,8 @@ func readFilesInfo(hr headerReader) (*filesInfo, error) {
 				return nil, err
 			}
 
-			// FIXME
 			for i, a := range attributes {
-				fmt.Println(i, a)
+				f.file[i].attributes = a
 			}
 		case idStartPos:
 			return nil, errors.New("sevenzip: TODO idStartPos")
@@ -903,9 +893,9 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	// If the header was encoded we should have sufficient information now
 	// to decode it
 	if id == idEncodedHeader && streamsInfo != nil {
-		spew.Dump(streamsInfo)
-
-		// XXX Assert there's only one folder?
+		if streamsInfo.Folders() != 1 {
+			return errors.New("sevenzip: expected only one folder in header stream")
+		}
 
 		fr, crc, err := z.folderReader(streamsInfo, 0)
 		if err != nil {
