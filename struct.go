@@ -185,6 +185,10 @@ type streamsInfo struct {
 	subStreamsInfo *subStreamsInfo
 }
 
+func (si *streamsInfo) Folders() int {
+	return len(si.unpackInfo.folder)
+}
+
 func (si *streamsInfo) FolderOffset(folder int) int64 {
 	offset := uint64(0)
 	for i, k := 0, uint64(0); i < folder; i++ {
