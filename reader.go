@@ -664,7 +664,7 @@ func readFilesInfo(hr headerReader) (*filesInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	f.file = make([]file, files)
+	f.file = make([]FileHeader, files)
 
 	for {
 		property, err := hr.ReadByte()
@@ -693,7 +693,7 @@ func readFilesInfo(hr headerReader) (*filesInfo, error) {
 			}
 
 			for i, t := range times {
-				f.file[i].ctime = t
+				f.file[i].Created = t
 			}
 		case idATime:
 			times, err := readTimes(hr, files, length)
@@ -702,7 +702,7 @@ func readFilesInfo(hr headerReader) (*filesInfo, error) {
 			}
 
 			for i, t := range times {
-				f.file[i].atime = t
+				f.file[i].Accessed = t
 			}
 		case idMTime:
 			times, err := readTimes(hr, files, length)
@@ -711,7 +711,7 @@ func readFilesInfo(hr headerReader) (*filesInfo, error) {
 			}
 
 			for i, t := range times {
-				f.file[i].mtime = t
+				f.file[i].Modified = t
 			}
 		case idName:
 			names, err := readNames(hr, files, length)
@@ -720,7 +720,7 @@ func readFilesInfo(hr headerReader) (*filesInfo, error) {
 			}
 
 			for i, n := range names {
-				f.file[i].name = n
+				f.file[i].Name = n
 			}
 		case idWinAttributes:
 			attributes, err := readAttributes(hr, files, length)
@@ -729,7 +729,7 @@ func readFilesInfo(hr headerReader) (*filesInfo, error) {
 			}
 
 			for i, a := range attributes {
-				f.file[i].attributes = a
+				f.file[i].Attributes = a
 			}
 		case idStartPos:
 			return nil, errors.New("sevenzip: TODO idStartPos")
@@ -795,6 +795,11 @@ func readHeader(hr headerReader) (*header, error) {
 
 	if id != idEnd {
 		return nil, errUnexpectedID
+	}
+
+	for i := range h.filesInfo.file {
+		h.filesInfo.file[i].CRC32 = h.streamsInfo.subStreamsInfo.digest[i]
+		_, h.filesInfo.file[i].UncompressedSize = h.streamsInfo.FileFolderAndSize(i)
 	}
 
 	return h, nil
@@ -923,6 +928,26 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	}
 
 	spew.Dump(header)
+
+	folder, offset := 0, int64(0)
+	z.File = make([]*File, 0, len(header.filesInfo.file))
+	for i, fh := range header.filesInfo.file {
+		f := new(File)
+		f.zip = z
+		f.FileHeader = fh
+
+		f.folder, _ = header.streamsInfo.FileFolderAndSize(i)
+
+		if f.folder != folder {
+			offset = 0
+		}
+		f.offset = offset
+
+		offset += int64(f.UncompressedSize)
+		folder = f.folder
+
+		z.File = append(z.File, f)
+	}
 
 	return nil
 }

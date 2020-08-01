@@ -189,6 +189,23 @@ func (si *streamsInfo) Folders() int {
 	return len(si.unpackInfo.folder)
 }
 
+func (si *streamsInfo) FileFolderAndSize(file int) (int, uint64) {
+	total := uint64(0)
+	var folder int
+	var streams uint64
+	for folder, streams = range si.subStreamsInfo.streams {
+		total += streams
+		if uint64(file) < total {
+			break
+		}
+	}
+
+	if streams == 1 {
+		return folder, si.unpackInfo.folder[folder].size[len(si.unpackInfo.folder[folder].coder)-1]
+	}
+	return folder, si.subStreamsInfo.size[file]
+}
+
 func (si *streamsInfo) FolderOffset(folder int) int64 {
 	offset := uint64(0)
 	for i, k := 0, uint64(0); i < folder; i++ {
@@ -235,14 +252,8 @@ func (si *streamsInfo) FolderReader(rc io.ReadCloser, folder int, password strin
 	return fr, 0, nil
 }
 
-type file struct {
-	name                string
-	ctime, atime, mtime time.Time
-	attributes          uint32
-}
-
 type filesInfo struct {
-	file []file
+	file []FileHeader
 }
 
 type header struct {
