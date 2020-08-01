@@ -10,8 +10,9 @@ A very rough attempt at a reader for 7-zip archives inspired by `archive/zip`.
 
 Current status:
 
+* Pure Go, no external libraries or binaries needed.
 * Handles uncompressed headers, (`7za a -mhc=off test.7z ...`).
-* Handles LZMA-compressed headers, (`7za a -mhc=on test.7z ...`).
+* Handles compressed headers, (`7za a -mhc=on test.7z ...`).
 * Handles password-protected versions of both of the above (`7za a -mhc=on|off -mhe=on -ppassword test.7z ...`).
 * Validates CRC values as it parses the file.
 * Supports Bzip2, Deflate, Copy, LZMA and LZMA2 methods.
