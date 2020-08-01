@@ -1,6 +1,9 @@
 package sevenzip
 
 import (
+	"errors"
+	"hash/crc32"
+	"io"
 	"path/filepath"
 	"testing"
 )
@@ -52,4 +55,51 @@ func TestOpenReaderWithPassword(t *testing.T) {
 			defer r.Close()
 		})
 	}
+}
+
+func benchmarkArchive(file string, b *testing.B) {
+	h := crc32.NewIEEE()
+	for n := 0; n < b.N; n++ {
+		r, err := OpenReader(filepath.Join("testdata", file))
+		if err != nil {
+			b.Fatal(err)
+		}
+		defer r.Close()
+		for _, f := range r.File {
+			rc, err := f.Open()
+			if err != nil {
+				b.Fatal(err)
+			}
+			defer rc.Close()
+			h.Reset()
+			if _, err := io.Copy(h, rc); err != nil {
+				b.Fatal(err)
+			}
+			rc.Close()
+			if crc32Compare(h.Sum(nil), f.CRC32) != 0 {
+				b.Fatal(errors.New("CRC doesn't match"))
+			}
+		}
+		r.Close()
+	}
+}
+
+func BenchmarkBzip2(b *testing.B) {
+	benchmarkArchive("bzip2.7z", b)
+}
+
+func BenchmarkCopy(b *testing.B) {
+	benchmarkArchive("copy.7z", b)
+}
+
+func BenchmarkDeflate(b *testing.B) {
+	benchmarkArchive("deflate.7z", b)
+}
+
+func BenchmarkLZMA(b *testing.B) {
+	benchmarkArchive("lzma.7z", b)
+}
+
+func BenchmarkLZMA2(b *testing.B) {
+	benchmarkArchive("lzma2.7z", b)
 }

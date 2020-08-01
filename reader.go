@@ -14,7 +14,6 @@ import (
 
 	"github.com/bodgit/plumbing"
 	"github.com/bodgit/windows"
-	"github.com/davecgh/go-spew/spew"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 )
@@ -32,6 +31,7 @@ type Reader struct {
 	r     io.ReaderAt
 	start int64
 	end   int64
+	si    *streamsInfo
 	p     string
 	File  []*File
 }
@@ -59,7 +59,16 @@ type File struct {
 }
 
 func (f *File) Open() (io.ReadCloser, error) {
-	return nil, nil
+	r, _, err := f.zip.folderReader(f.zip.si, f.folder)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := io.CopyN(ioutil.Discard, r, f.offset); err != nil {
+		return nil, err
+	}
+
+	return plumbing.LimitReadCloser(r, int64(f.UncompressedSize)), nil
 }
 
 func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
@@ -930,7 +939,9 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 		}
 	}
 
-	spew.Dump(header)
+	z.si = header.streamsInfo
+
+	//spew.Dump(header)
 
 	folder, offset := 0, int64(0)
 	z.File = make([]*File, 0, len(header.filesInfo.file))
