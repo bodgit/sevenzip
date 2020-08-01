@@ -53,6 +53,9 @@ type checksumReadCloser interface {
 
 type File struct {
 	FileHeader
+	zip    *Reader
+	folder int
+	offset int64
 }
 
 func (f *File) Open() (io.ReadCloser, error) {
