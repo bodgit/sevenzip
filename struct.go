@@ -130,6 +130,30 @@ func (f *folder) coderReader(rc io.ReadCloser, coder uint64, password string) (i
 	return plumbing.LimitReadCloser(cr, int64(f.size[coder])), nil
 }
 
+type folderReadCloser struct {
+	rc io.ReadCloser
+	h  hash.Hash
+}
+
+func (rc *folderReadCloser) Read(p []byte) (int, error) {
+	return rc.rc.Read(p)
+}
+
+func (rc *folderReadCloser) Close() error {
+	return rc.rc.Close()
+}
+
+func (rc *folderReadCloser) Checksum() []byte {
+	return rc.h.Sum(nil)
+}
+
+func newFolderReadCloser(rc io.ReadCloser) io.ReadCloser {
+	nrc := new(folderReadCloser)
+	nrc.h = crc32.NewIEEE()
+	nrc.rc = plumbing.TeeReadCloser(rc, nrc.h)
+	return nrc
+}
+
 func (f *folder) reader(rc io.ReadCloser, password string) (io.ReadCloser, error) {
 	// XXX We can't currently handle complex coders (>1 in/out stream).
 	// Yes BCJ2, that means you
@@ -151,7 +175,7 @@ func (f *folder) reader(rc io.ReadCloser, password string) (io.ReadCloser, error
 		}
 	}
 
-	return fr, nil
+	return newFolderReadCloser(fr), nil
 }
 
 func (f *folder) unpackSize() uint64 {
@@ -217,37 +241,13 @@ func (si *streamsInfo) FolderOffset(folder int) int64 {
 	return int64(si.packInfo.position + offset)
 }
 
-type crcReadCloser struct {
-	rc io.ReadCloser
-	h  hash.Hash
-}
-
-func (rc *crcReadCloser) Read(p []byte) (int, error) {
-	return rc.rc.Read(p)
-}
-
-func (rc *crcReadCloser) Close() error {
-	return rc.rc.Close()
-}
-
-func (rc *crcReadCloser) Checksum() []byte {
-	return rc.h.Sum(nil)
-}
-
-func newCRCReadCloser(rc io.ReadCloser) io.ReadCloser {
-	nrc := new(crcReadCloser)
-	nrc.h = crc32.NewIEEE()
-	nrc.rc = plumbing.TeeReadCloser(rc, nrc.h)
-	return nrc
-}
-
 func (si *streamsInfo) FolderReader(rc io.ReadCloser, folder int, password string) (io.ReadCloser, uint32, error) {
 	fr, err := si.unpackInfo.folder[folder].reader(rc, password)
 	if err != nil {
 		return nil, 0, err
 	}
 	if si.unpackInfo.digest != nil {
-		return newCRCReadCloser(fr), si.unpackInfo.digest[folder], nil
+		return fr, si.unpackInfo.digest[folder], nil
 	}
 	return fr, 0, nil
 }
