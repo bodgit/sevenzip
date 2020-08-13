@@ -28,13 +28,25 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 	return rc.r.Read(p)
 }
 
-// NewReader returns a new LZMA io.ReadCloser.
-func NewReader(_ []byte, _ uint64, readers ...io.ReadCloser) (io.ReadCloser, error) {
+// NewReader returns a new LZMA2 io.ReadCloser.
+func NewReader(p []byte, _ uint64, readers ...io.ReadCloser) (io.ReadCloser, error) {
 	if len(readers) != 1 {
 		return nil, errors.New("lzma2: need exactly one reader")
 	}
 
-	lr, err := lzma.NewReader2(readers[0])
+	if len(p) != 1 {
+		return nil, errors.New("lzma2: not enough properties")
+	}
+
+	config := lzma.Reader2Config{
+		DictCap: (2 | (int(p[0]) & 1)) << (p[0]/2 + 11), // This gem came from Lzma2Dec.c
+	}
+
+	if err := config.Verify(); err != nil {
+		return nil, err
+	}
+
+	lr, err := config.NewReader2(readers[0])
 	if err != nil {
 		return nil, err
 	}
