@@ -14,6 +14,7 @@ import (
 
 	"github.com/bodgit/plumbing"
 	"github.com/bodgit/windows"
+	"github.com/hashicorp/go-multierror"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 )
@@ -37,7 +38,7 @@ type Reader struct {
 }
 
 type ReadCloser struct {
-	f *os.File
+	f []*os.File
 	Reader
 }
 
@@ -89,7 +90,7 @@ func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
 		f.Close()
 		return nil, err
 	}
-	r.f = f
+	r.f = []*os.File{f}
 
 	return r, nil
 }
@@ -967,5 +968,9 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 }
 
 func (rc *ReadCloser) Close() error {
-	return rc.f.Close()
+	var err *multierror.Error
+	for _, f := range rc.f {
+		err = multierror.Append(err, f.Close())
+	}
+	return err.ErrorOrNil()
 }
