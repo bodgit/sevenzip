@@ -261,6 +261,7 @@ type header struct {
 	filesInfo   *filesInfo
 }
 
+// FileHeader describes a file within a 7-zip file.
 type FileHeader struct {
 	Name             string
 	Created          time.Time
@@ -271,6 +272,7 @@ type FileHeader struct {
 	UncompressedSize uint64
 }
 
+// FileInfo returns an os.FileInfo for the FileHeader.
 func (h *FileHeader) FileInfo() os.FileInfo {
 	return headerFileInfo{h}
 }
@@ -294,6 +296,7 @@ func (fi headerFileInfo) IsDir() bool {
 func (fi headerFileInfo) ModTime() time.Time {
 	return fi.fh.Modified.UTC()
 }
+
 func (fi headerFileInfo) Mode() os.FileMode {
 	return fi.fh.Mode()
 }
@@ -321,6 +324,7 @@ const (
 	msdosReadOnly = 0x01
 )
 
+// Mode returns the permission and mode bits for the FileHeader.
 func (h *FileHeader) Mode() (mode os.FileMode) {
 	// Prefer the POSIX attributes if they're present
 	if h.Attributes&0xf0000000 != 0 {

@@ -5,15 +5,20 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"hash/crc32"
 	"io"
 	"io/ioutil"
 	"math/bits"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/bodgit/plumbing"
 	"github.com/bodgit/windows"
+	"github.com/hashicorp/go-multierror"
+	"go4.org/readerutil"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 )
@@ -37,7 +42,7 @@ type Reader struct {
 }
 
 type ReadCloser struct {
-	f *os.File
+	f []*os.File
 	Reader
 }
 
@@ -58,6 +63,8 @@ type File struct {
 	offset int64
 }
 
+// Open returns an io.ReadCloser that provides access to the File's contents.
+// Multiple files may be read concurrently.
 func (f *File) Open() (io.ReadCloser, error) {
 	r, _, err := f.zip.folderReader(f.zip.si, f.folder)
 	if err != nil {
@@ -71,6 +78,10 @@ func (f *File) Open() (io.ReadCloser, error) {
 	return plumbing.LimitReadCloser(r, int64(f.UncompressedSize)), nil
 }
 
+// OpenReaderWithPassword will open the 7-zip file specified by name using
+// password as the basis of the decryption key and return a ReadCloser. If
+// name has a ".001" suffix it is assumed there are multiple volumes and each
+// sequential volume will be opened.
 func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
 	f, err := os.Open(name)
 	if err != nil {
@@ -79,25 +90,66 @@ func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
 
 	info, err := f.Stat()
 	if err != nil {
-		f.Close()
+		err = multierror.Append(err, f.Close())
 		return nil, err
+	}
+
+	var reader io.ReaderAt = f
+	size := info.Size()
+	files := []*os.File{f}
+
+	if ext := filepath.Ext(name); ext == ".001" {
+		sr := []readerutil.SizeReaderAt{io.NewSectionReader(f, 0, size)}
+		for i := 2; true; i++ {
+			f, err := os.Open(fmt.Sprintf("%s.%03d", strings.TrimSuffix(name, ext), i))
+			if err != nil {
+				if os.IsNotExist(err) {
+					break
+				}
+				for _, file := range files {
+					err = multierror.Append(err, file.Close())
+				}
+				return nil, err
+			}
+			files = append(files, f)
+
+			info, err = f.Stat()
+			if err != nil {
+				for _, file := range files {
+					err = multierror.Append(err, file.Close())
+				}
+				return nil, err
+			}
+
+			sr = append(sr, io.NewSectionReader(f, 0, info.Size()))
+		}
+		mr := readerutil.NewMultiReaderAt(sr...)
+		reader, size = mr, mr.Size()
 	}
 
 	r := new(ReadCloser)
 	r.p = password
-	if err := r.init(f, info.Size()); err != nil {
-		f.Close()
+	if err := r.init(reader, size); err != nil {
+		for _, file := range files {
+			err = multierror.Append(err, file.Close())
+		}
 		return nil, err
 	}
-	r.f = f
+	r.f = files
 
 	return r, nil
 }
 
+// OpenReader will open the 7-zip file specified by name and return a
+// ReadCloser. If name has a ".001" suffix it is assumed there are multiple
+// volumes and each sequential volume will be opened.
 func OpenReader(name string) (*ReadCloser, error) {
 	return OpenReaderWithPassword(name, "")
 }
 
+// NewReaderWithPassword returns a new Reader reading from r using password as
+// the basis of the decryption key, which is assumed to have the given size in
+// bytes.
 func NewReaderWithPassword(r io.ReaderAt, size int64, password string) (*Reader, error) {
 	if size < 0 {
 		return nil, errors.New("sevenzip: size cannot be negative")
@@ -112,6 +164,8 @@ func NewReaderWithPassword(r io.ReaderAt, size int64, password string) (*Reader,
 	return zr, nil
 }
 
+// NewReader returns a new Reader reading from r, which is assumed to have the
+// given size in bytes.
 func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
 	return NewReaderWithPassword(r, size, "")
 }
@@ -966,6 +1020,11 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	return nil
 }
 
+// Close closes the 7-zip file or volumes, rendering them unusable for I/O.
 func (rc *ReadCloser) Close() error {
-	return rc.f.Close()
+	var err *multierror.Error
+	for _, f := range rc.f {
+		err = multierror.Append(err, f.Close())
+	}
+	return err.ErrorOrNil()
 }
