@@ -2,6 +2,7 @@ package sevenzip
 
 import (
 	"errors"
+	"fmt"
 	"hash/crc32"
 	"io"
 	"path/filepath"
@@ -17,6 +18,9 @@ func TestOpenReader(t *testing.T) {
 		},
 		"with header compression": {
 			file: "t1.7z",
+		},
+		"multiple volume": {
+			file: "multi.7z.001",
 		},
 	}
 
@@ -55,6 +59,28 @@ func TestOpenReaderWithPassword(t *testing.T) {
 			defer r.Close()
 		})
 	}
+}
+
+func ExampleOpenReader() {
+	r, err := OpenReader(filepath.Join("testdata", "multi.7z.001"))
+	if err != nil {
+		panic(err)
+	}
+	defer r.Close()
+
+	for _, file := range r.File {
+		fmt.Println(file.Name)
+	}
+	// Output: 01
+	// 02
+	// 03
+	// 04
+	// 05
+	// 06
+	// 07
+	// 08
+	// 09
+	// 10
 }
 
 func benchmarkArchive(file string, b *testing.B) {

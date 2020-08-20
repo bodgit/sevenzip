@@ -5,16 +5,20 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"hash/crc32"
 	"io"
 	"io/ioutil"
 	"math/bits"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/bodgit/plumbing"
 	"github.com/bodgit/windows"
 	"github.com/hashicorp/go-multierror"
+	"go4.org/readerutil"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 )
@@ -80,17 +84,52 @@ func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
 
 	info, err := f.Stat()
 	if err != nil {
-		f.Close()
+		err = multierror.Append(err, f.Close())
 		return nil, err
+	}
+
+	var reader io.ReaderAt = f
+	size := info.Size()
+	files := []*os.File{f}
+
+	if ext := filepath.Ext(name); ext == ".001" {
+		sr := []readerutil.SizeReaderAt{io.NewSectionReader(f, 0, size)}
+		for i := 2; true; i++ {
+			f, err := os.Open(fmt.Sprintf("%s.%03d", strings.TrimSuffix(name, ext), i))
+			if err != nil {
+				if os.IsNotExist(err) {
+					break
+				}
+				for _, file := range files {
+					err = multierror.Append(err, file.Close())
+				}
+				return nil, err
+			}
+			files = append(files, f)
+
+			info, err = f.Stat()
+			if err != nil {
+				for _, file := range files {
+					err = multierror.Append(err, file.Close())
+				}
+				return nil, err
+			}
+
+			sr = append(sr, io.NewSectionReader(f, 0, info.Size()))
+		}
+		mr := readerutil.NewMultiReaderAt(sr...)
+		reader, size = mr, mr.Size()
 	}
 
 	r := new(ReadCloser)
 	r.p = password
-	if err := r.init(f, info.Size()); err != nil {
-		f.Close()
+	if err := r.init(reader, size); err != nil {
+		for _, file := range files {
+			err = multierror.Append(err, file.Close())
+		}
 		return nil, err
 	}
-	r.f = []*os.File{f}
+	r.f = files
 
 	return r, nil
 }
