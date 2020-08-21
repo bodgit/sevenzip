@@ -14,7 +14,7 @@ Current status:
 * Handles uncompressed headers, (`7za a -mhc=off test.7z ...`).
 * Handles compressed headers, (`7za a -mhc=on test.7z ...`).
 * Handles password-protected versions of both of the above (`7za a -mhc=on|off -mhe=on -ppassword test.7z ...`).
-* Handles archives split into multiple volumes.
+* Handles archives split into multiple volumes, (`7za a -v100m test.7z ...`).
 * Validates CRC values as it parses the file.
 * Supports Bzip2, Deflate, Copy, LZMA and LZMA2 methods.
 
