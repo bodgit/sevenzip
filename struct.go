@@ -270,6 +270,8 @@ type FileHeader struct {
 	Attributes       uint32
 	CRC32            uint32
 	UncompressedSize uint64
+	isEmptyStream    bool
+	isEmptyFile      bool
 }
 
 // FileInfo returns an os.FileInfo for the FileHeader.

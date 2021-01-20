@@ -66,6 +66,11 @@ type File struct {
 // Open returns an io.ReadCloser that provides access to the File's contents.
 // Multiple files may be read concurrently.
 func (f *File) Open() (io.ReadCloser, error) {
+	if f.FileHeader.isEmptyStream || f.FileHeader.isEmptyFile {
+		// Return empty reader for directory or empty file
+		return ioutil.NopCloser(bytes.NewReader(nil)), nil
+	}
+
 	r, _, err := f.zip.folderReader(f.zip.si, f.folder)
 	if err != nil {
 		return nil, err
@@ -198,16 +203,36 @@ func readUint64(hr headerReader) (uint64, error) {
 }
 
 func readBool(hr headerReader, count uint64) ([]bool, error) {
+	defined := make([]bool, count)
+
+	var b, mask byte
+	for i := range defined {
+		if mask == 0 {
+			var err error
+			b, err = hr.ReadByte()
+			if err != nil {
+				return nil, err
+			}
+			mask = 0x80
+		}
+		defined[i] = (b & mask) != 0
+		mask >>= 1
+	}
+
+	return defined, nil
+}
+
+func readOptionalBool(hr headerReader, count uint64) ([]bool, error) {
 	all, err := hr.ReadByte()
 	if err != nil {
 		return nil, err
 	}
 
-	defined := make([]bool, count)
 	if all == 0 {
-		return nil, errors.New("sevenzip: TODO readBool")
+		return readBool(hr, count)
 	}
 
+	defined := make([]bool, count)
 	for i := range defined {
 		defined[i] = true
 	}
@@ -228,7 +253,7 @@ func readSizes(hr headerReader, count uint64) ([]uint64, error) {
 }
 
 func readCRC(hr headerReader, count uint64) ([]uint32, []bool, error) {
-	defined, err := readBool(hr, count)
+	defined, err := readOptionalBool(hr, count)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -604,7 +629,7 @@ func readStreamsInfo(hr headerReader) (*streamsInfo, error) {
 }
 
 func readTimes(hr headerReader, count, length uint64) ([]time.Time, error) {
-	_, err := readBool(hr, count)
+	_, err := readOptionalBool(hr, count)
 	if err != nil {
 		return nil, err
 	}
@@ -691,7 +716,7 @@ func readNames(hr headerReader, count, length uint64) ([]string, error) {
 }
 
 func readAttributes(hr headerReader, count, length uint64) ([]uint32, error) {
-	_, err := readBool(hr, count)
+	_, err := readOptionalBool(hr, count)
 	if err != nil {
 		return nil, err
 	}
@@ -732,6 +757,7 @@ func readFilesInfo(hr headerReader) (*filesInfo, error) {
 	}
 	f.file = make([]FileHeader, files)
 
+	var emptyStreams uint64
 	for {
 		property, err := hr.ReadByte()
 		if err != nil {
@@ -749,9 +775,30 @@ func readFilesInfo(hr headerReader) (*filesInfo, error) {
 
 		switch property {
 		case idEmptyStream:
-			return nil, errors.New("sevenzip: TODO idEmptyStream")
+			empty, err := readBool(hr, files)
+			if err != nil {
+				return nil, err
+			}
+
+			for i := range f.file {
+				f.file[i].isEmptyStream = empty[i]
+				if empty[i] {
+					emptyStreams++
+				}
+			}
 		case idEmptyFile:
-			return nil, errors.New("sevenzip: TODO idEmptyFile")
+			empty, err := readBool(hr, emptyStreams)
+			if err != nil {
+				return nil, err
+			}
+
+			j := 0
+			for i := range f.file {
+				if f.file[i].isEmptyStream {
+					f.file[i].isEmptyFile = empty[j]
+				}
+				j++
+			}
 		case idCTime:
 			times, err := readTimes(hr, files, length)
 			if err != nil {
@@ -863,9 +910,14 @@ func readHeader(hr headerReader) (*header, error) {
 		return nil, errUnexpectedID
 	}
 
+	j := 0
 	for i := range h.filesInfo.file {
-		h.filesInfo.file[i].CRC32 = h.streamsInfo.subStreamsInfo.digest[i]
-		_, h.filesInfo.file[i].UncompressedSize = h.streamsInfo.FileFolderAndSize(i)
+		if h.filesInfo.file[i].isEmptyStream {
+			continue
+		}
+		h.filesInfo.file[i].CRC32 = h.streamsInfo.subStreamsInfo.digest[j]
+		_, h.filesInfo.file[i].UncompressedSize = h.streamsInfo.FileFolderAndSize(j)
+		j++
 	}
 
 	return h, nil
@@ -999,20 +1051,28 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 
 	folder, offset := 0, int64(0)
 	z.File = make([]*File, 0, len(header.filesInfo.file))
-	for i, fh := range header.filesInfo.file {
+	j := 0
+	for _, fh := range header.filesInfo.file {
 		f := new(File)
 		f.zip = z
 		f.FileHeader = fh
 
-		f.folder, _ = header.streamsInfo.FileFolderAndSize(i)
-
-		if f.folder != folder {
-			offset = 0
+		if f.FileHeader.FileInfo().IsDir() && !strings.HasSuffix(f.FileHeader.Name, "/") {
+			f.FileHeader.Name += "/"
 		}
-		f.offset = offset
 
-		offset += int64(f.UncompressedSize)
-		folder = f.folder
+		if !fh.isEmptyStream && !fh.isEmptyFile {
+			f.folder, _ = header.streamsInfo.FileFolderAndSize(j)
+
+			if f.folder != folder {
+				offset = 0
+			}
+			f.offset = offset
+
+			offset += int64(f.UncompressedSize)
+			folder = f.folder
+			j++
+		}
 
 		z.File = append(z.File, f)
 	}
