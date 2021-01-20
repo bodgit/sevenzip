@@ -22,6 +22,9 @@ func TestOpenReader(t *testing.T) {
 		"multiple volume": {
 			file: "multi.7z.001",
 		},
+		"empty streams and files": {
+			file: "empty.7z",
+		},
 	}
 
 	for name, table := range tables {
