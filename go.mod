@@ -7,7 +7,7 @@ require (
 	github.com/bodgit/windows v1.0.0
 	github.com/connesc/cipherio v0.2.1
 	github.com/hashicorp/go-multierror v1.1.0
-	github.com/ulikunitz/xz v0.5.7
+	github.com/ulikunitz/xz v0.5.10
 	go4.org v0.0.0-20200411211856-f5505b9728dd
 	golang.org/x/text v0.3.3
 )
