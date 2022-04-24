@@ -93,6 +93,7 @@ type bindPair struct {
 }
 
 type folder struct {
+	in, out       uint64
 	packedStreams uint64
 	coder         []*coder
 	bindPair      []*bindPair

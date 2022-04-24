@@ -374,18 +374,16 @@ func readFolder(hr headerReader) (*folder, error) {
 		return nil, err
 	}
 
-	in, out := uint64(0), uint64(0)
-
 	f.coder = make([]*coder, coders)
 	for i := uint64(0); i < coders; i++ {
 		if f.coder[i], err = readCoder(hr); err != nil {
 			return nil, err
 		}
-		in += f.coder[i].in
-		out += f.coder[i].out
+		f.in += f.coder[i].in
+		f.out += f.coder[i].out
 	}
 
-	bindPairs := out - 1
+	bindPairs := f.out - 1
 
 	f.bindPair = make([]*bindPair, bindPairs)
 	for i := uint64(0); i < bindPairs; i++ {
@@ -405,11 +403,11 @@ func readFolder(hr headerReader) (*folder, error) {
 		}
 	}
 
-	f.packedStreams = in - bindPairs
+	f.packedStreams = f.in - bindPairs
 
 	if f.packedStreams == 1 {
 		f.packed = []uint64{}
-		for i := uint64(0); i < in; i++ {
+		for i := uint64(0); i < f.in; i++ {
 			if f.findInBindPair(i) == nil {
 				f.packed = append(f.packed, i)
 			}
