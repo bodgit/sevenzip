@@ -932,8 +932,7 @@ func (z *Reader) folderReader(si *streamsInfo, f int) (io.ReadCloser, uint32, er
 		return nil, 0, err
 	}
 
-	// Adding buffering here makes a noticeable performance difference
-	return si.FolderReader(ioutil.NopCloser(bufio.NewReader(sr)), f, z.p)
+	return si.FolderReader(sr, f, z.p)
 }
 
 func (z *Reader) init(r io.ReaderAt, size int64) error {

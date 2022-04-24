@@ -1,10 +1,12 @@
 package sevenzip
 
 import (
+	"bufio"
 	"errors"
 	"hash"
 	"hash/crc32"
 	"io"
+	"io/ioutil"
 	"os"
 	"path"
 	"time"
@@ -48,6 +50,11 @@ var (
 type cryptoReadCloser interface {
 	io.ReadCloser
 	Password(string) error
+}
+
+type folderReader interface {
+	io.Reader
+	io.ReaderAt
 }
 
 type signatureHeader struct {
@@ -154,7 +161,7 @@ func newFolderReadCloser(rc io.ReadCloser) io.ReadCloser {
 	return nrc
 }
 
-func (f *folder) reader(rc io.ReadCloser, password string) (io.ReadCloser, error) {
+func (f *folder) reader(fr folderReader, password string) (io.ReadCloser, error) {
 	// XXX We can't currently handle complex coders (>1 in/out stream).
 	// Yes BCJ2, that means you
 	for _, c := range f.coder {
@@ -163,19 +170,20 @@ func (f *folder) reader(rc io.ReadCloser, password string) (io.ReadCloser, error
 		}
 	}
 
-	fr, err := f.coderReader(rc, 0, password)
+	// Adding buffering here makes a noticeable performance difference
+	fcr, err := f.coderReader(ioutil.NopCloser(bufio.NewReader(fr)), 0, password)
 	if err != nil {
 		return nil, err
 	}
 
 	// XXX I don't think I'm interpreting the bind pairs correctly here
 	for _, bp := range f.bindPair {
-		if fr, err = f.coderReader(fr, bp.in, password); err != nil {
+		if fcr, err = f.coderReader(fcr, bp.in, password); err != nil {
 			return nil, err
 		}
 	}
 
-	return newFolderReadCloser(fr), nil
+	return newFolderReadCloser(fcr), nil
 }
 
 func (f *folder) unpackSize() uint64 {
@@ -241,15 +249,15 @@ func (si *streamsInfo) FolderOffset(folder int) int64 {
 	return int64(si.packInfo.position + offset)
 }
 
-func (si *streamsInfo) FolderReader(rc io.ReadCloser, folder int, password string) (io.ReadCloser, uint32, error) {
-	fr, err := si.unpackInfo.folder[folder].reader(rc, password)
+func (si *streamsInfo) FolderReader(fr folderReader, folder int, password string) (io.ReadCloser, uint32, error) {
+	nfr, err := si.unpackInfo.folder[folder].reader(fr, password)
 	if err != nil {
 		return nil, 0, err
 	}
 	if si.unpackInfo.digest != nil {
-		return fr, si.unpackInfo.digest[folder], nil
+		return nfr, si.unpackInfo.digest[folder], nil
 	}
-	return fr, 0, nil
+	return nfr, 0, nil
 }
 
 type filesInfo struct {
