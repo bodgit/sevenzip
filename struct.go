@@ -120,12 +120,12 @@ func (f *folder) findOutBindPair(i uint64) *bindPair {
 	return nil
 }
 
-func (f *folder) coderReader(rc io.ReadCloser, coder uint64, password string) (io.ReadCloser, error) {
+func (f *folder) coderReader(readers []io.ReadCloser, coder uint64, password string) (io.ReadCloser, error) {
 	dcomp := decompressor(f.coder[coder].id)
 	if dcomp == nil {
 		return nil, errAlgorithm
 	}
-	cr, err := dcomp(f.coder[coder].properties, f.size[coder], rc)
+	cr, err := dcomp(f.coder[coder].properties, f.size[coder], readers)
 	if err != nil {
 		return nil, err
 	}
@@ -173,14 +173,14 @@ func (f *folder) reader(fr folderReader, password string) (io.ReadCloser, error)
 	}
 
 	// Adding buffering here makes a noticeable performance difference
-	fcr, err := f.coderReader(ioutil.NopCloser(bufio.NewReader(fr)), 0, password)
+	fcr, err := f.coderReader([]io.ReadCloser{ioutil.NopCloser(bufio.NewReader(fr))}, 0, password)
 	if err != nil {
 		return nil, err
 	}
 
 	// XXX I don't think I'm interpreting the bind pairs correctly here
 	for _, bp := range f.bindPair {
-		if fcr, err = f.coderReader(fcr, bp.in, password); err != nil {
+		if fcr, err = f.coderReader([]io.ReadCloser{fcr}, bp.in, password); err != nil {
 			return nil, err
 		}
 	}

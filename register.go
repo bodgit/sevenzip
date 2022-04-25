@@ -17,13 +17,13 @@ import (
 // passed any property bytes, the size of the stream and a varying number of,
 // but nearly always one, io.ReadCloser providing the stream of bytes. Blame
 // (currently unimplemented) BCJ2 for that one.
-type Decompressor func([]byte, uint64, ...io.ReadCloser) (io.ReadCloser, error)
+type Decompressor func([]byte, uint64, []io.ReadCloser) (io.ReadCloser, error)
 
 var decompressors sync.Map
 
 func init() {
 	// Copy (just return the passed io.ReadCloser)
-	RegisterDecompressor([]byte{0x00}, Decompressor(func(_ []byte, _ uint64, readers ...io.ReadCloser) (io.ReadCloser, error) {
+	RegisterDecompressor([]byte{0x00}, Decompressor(func(_ []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
 		if len(readers) != 1 {
 			return nil, errors.New("sevenzip: need exactly one reader")
 		}
