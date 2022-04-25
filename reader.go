@@ -923,14 +923,7 @@ func readHeader(hr headerReader) (*header, error) {
 
 func (z *Reader) folderReader(si *streamsInfo, f int) (io.ReadCloser, uint32, error) {
 	// Create a SectionReader covering all of the streams data
-	sr := io.NewSectionReader(z.r, z.start, z.end)
-
-	// Seek to where the folder in this particular stream starts
-	if _, err := sr.Seek(si.FolderOffset(f), io.SeekStart); err != nil {
-		return nil, 0, err
-	}
-
-	return si.FolderReader(sr, f, z.p)
+	return si.FolderReader(io.NewSectionReader(z.r, z.start, z.end), f, z.p)
 }
 
 func (z *Reader) init(r io.ReaderAt, size int64) error {

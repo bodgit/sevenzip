@@ -55,6 +55,7 @@ type cryptoReadCloser interface {
 type folderReader interface {
 	io.Reader
 	io.ReaderAt
+	io.Seeker
 }
 
 type signatureHeader struct {
@@ -239,7 +240,7 @@ func (si *streamsInfo) FileFolderAndSize(file int) (int, uint64) {
 	return folder, si.subStreamsInfo.size[file]
 }
 
-func (si *streamsInfo) FolderOffset(folder int) int64 {
+func (si *streamsInfo) folderOffset(folder int) int64 {
 	offset := uint64(0)
 	for i, k := 0, uint64(0); i < folder; i++ {
 		for j := k; j < k+si.unpackInfo.folder[i].packedStreams; j++ {
@@ -251,6 +252,11 @@ func (si *streamsInfo) FolderOffset(folder int) int64 {
 }
 
 func (si *streamsInfo) FolderReader(fr folderReader, folder int, password string) (io.ReadCloser, uint32, error) {
+	// Seek to where the folder in this particular stream starts
+	if _, err := fr.Seek(si.folderOffset(folder), io.SeekStart); err != nil {
+		return nil, 0, err
+	}
+
 	nfr, err := si.unpackInfo.folder[folder].reader(fr, password)
 	if err != nil {
 		return nil, 0, err
