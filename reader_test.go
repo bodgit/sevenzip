@@ -132,3 +132,7 @@ func BenchmarkLZMA(b *testing.B) {
 func BenchmarkLZMA2(b *testing.B) {
 	benchmarkArchive("lzma2.7z", b)
 }
+
+func BenchmarkBCJ2(b *testing.B) {
+	benchmarkArchive("bcj2.7z", b)
+}
