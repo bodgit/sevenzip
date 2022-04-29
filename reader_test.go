@@ -125,6 +125,10 @@ func BenchmarkDeflate(b *testing.B) {
 	benchmarkArchive("deflate.7z", b)
 }
 
+func BenchmarkDelta(b *testing.B) {
+	benchmarkArchive("delta.7z", b)
+}
+
 func BenchmarkLZMA(b *testing.B) {
 	benchmarkArchive("lzma.7z", b)
 }
