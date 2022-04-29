@@ -6,12 +6,12 @@ import (
 	"hash"
 	"hash/crc32"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"time"
 
 	"github.com/bodgit/plumbing"
+	"github.com/bodgit/sevenzip/internal/util"
 )
 
 const (
@@ -229,7 +229,7 @@ func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) 
 	offset := int64(0)
 	for i, input := range f.packed {
 		size := int64(si.packInfo.size[packedOffset+i])
-		in[input] = ioutil.NopCloser(bufio.NewReader(io.NewSectionReader(r, si.folderOffset(folder)+offset, size)))
+		in[input] = util.NopCloser(bufio.NewReader(io.NewSectionReader(r, si.folderOffset(folder)+offset, size)))
 		offset += size
 	}
 
