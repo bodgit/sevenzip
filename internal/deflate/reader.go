@@ -40,7 +40,7 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 }
 
 // NewReader returns a new DEFLATE io.ReadCloser.
-func NewReader(_ []byte, _ uint64, readers ...io.ReadCloser) (io.ReadCloser, error) {
+func NewReader(_ []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
 	if len(readers) != 1 {
 		return nil, errors.New("deflate: need exactly one reader")
 	}

@@ -29,7 +29,7 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 }
 
 // NewReader returns a new LZMA2 io.ReadCloser.
-func NewReader(p []byte, _ uint64, readers ...io.ReadCloser) (io.ReadCloser, error) {
+func NewReader(p []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
 	if len(readers) != 1 {
 		return nil, errors.New("lzma2: need exactly one reader")
 	}

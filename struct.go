@@ -1,6 +1,7 @@
 package sevenzip
 
 import (
+	"bufio"
 	"errors"
 	"hash"
 	"hash/crc32"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/bodgit/plumbing"
+	"github.com/bodgit/sevenzip/internal/util"
 )
 
 const (
@@ -77,15 +79,12 @@ type coder struct {
 	properties []byte
 }
 
-func (c *coder) isSimple() bool {
-	return c.in == 1 && c.out == 1
-}
-
 type bindPair struct {
 	in, out uint64
 }
 
 type folder struct {
+	in, out       uint64
 	packedStreams uint64
 	coder         []*coder
 	bindPair      []*bindPair
@@ -111,12 +110,12 @@ func (f *folder) findOutBindPair(i uint64) *bindPair {
 	return nil
 }
 
-func (f *folder) coderReader(rc io.ReadCloser, coder uint64, password string) (io.ReadCloser, error) {
+func (f *folder) coderReader(readers []io.ReadCloser, coder uint64, password string) (io.ReadCloser, error) {
 	dcomp := decompressor(f.coder[coder].id)
 	if dcomp == nil {
 		return nil, errAlgorithm
 	}
-	cr, err := dcomp(f.coder[coder].properties, f.size[coder], rc)
+	cr, err := dcomp(f.coder[coder].properties, f.size[coder], readers)
 	if err != nil {
 		return nil, err
 	}
@@ -152,30 +151,6 @@ func newFolderReadCloser(rc io.ReadCloser) io.ReadCloser {
 	nrc.h = crc32.NewIEEE()
 	nrc.rc = plumbing.TeeReadCloser(rc, nrc.h)
 	return nrc
-}
-
-func (f *folder) reader(rc io.ReadCloser, password string) (io.ReadCloser, error) {
-	// XXX We can't currently handle complex coders (>1 in/out stream).
-	// Yes BCJ2, that means you
-	for _, c := range f.coder {
-		if !c.isSimple() {
-			return nil, errors.New("sevenzip: TODO complex coders")
-		}
-	}
-
-	fr, err := f.coderReader(rc, 0, password)
-	if err != nil {
-		return nil, err
-	}
-
-	// XXX I don't think I'm interpreting the bind pairs correctly here
-	for _, bp := range f.bindPair {
-		if fr, err = f.coderReader(fr, bp.in, password); err != nil {
-			return nil, err
-		}
-	}
-
-	return newFolderReadCloser(fr), nil
 }
 
 func (f *folder) unpackSize() uint64 {
@@ -230,7 +205,7 @@ func (si *streamsInfo) FileFolderAndSize(file int) (int, uint64) {
 	return folder, si.subStreamsInfo.size[file]
 }
 
-func (si *streamsInfo) FolderOffset(folder int) int64 {
+func (si *streamsInfo) folderOffset(folder int) int64 {
 	offset := uint64(0)
 	for i, k := 0, uint64(0); i < folder; i++ {
 		for j := k; j < k+si.unpackInfo.folder[i].packedStreams; j++ {
@@ -241,11 +216,65 @@ func (si *streamsInfo) FolderOffset(folder int) int64 {
 	return int64(si.packInfo.position + offset)
 }
 
-func (si *streamsInfo) FolderReader(rc io.ReadCloser, folder int, password string) (io.ReadCloser, uint32, error) {
-	fr, err := si.unpackInfo.folder[folder].reader(rc, password)
-	if err != nil {
-		return nil, 0, err
+func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) (io.ReadCloser, uint32, error) {
+	f := si.unpackInfo.folder[folder]
+	in := make([]io.ReadCloser, f.in)
+	out := make([]io.ReadCloser, f.out)
+
+	packedOffset := 0
+	for i := 0; i < folder; i++ {
+		packedOffset += len(si.unpackInfo.folder[i].packed)
 	}
+
+	offset := int64(0)
+	for i, input := range f.packed {
+		size := int64(si.packInfo.size[packedOffset+i])
+		in[input] = util.NopCloser(bufio.NewReader(io.NewSectionReader(r, si.folderOffset(folder)+offset, size)))
+		offset += size
+	}
+
+	input, output := uint64(0), uint64(0)
+	for i, c := range f.coder {
+		if c.out != 1 {
+			return nil, 0, errors.New("more than one output stream")
+		}
+
+		for j := input; j < input+c.in; j++ {
+			if in[j] != nil {
+				continue
+			}
+
+			bp := f.findInBindPair(j)
+			if bp == nil || out[bp.out] == nil {
+				return nil, 0, errors.New("cannot find bound stream")
+			}
+
+			in[j] = out[bp.out]
+		}
+
+		var err error
+		out[output], err = f.coderReader(in[input:input+c.in], uint64(i), password)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		input += c.in
+		output += c.out
+	}
+
+	unbound := make([]uint64, 0, f.out)
+	for i := uint64(0); i < f.out; i++ {
+		if bp := f.findOutBindPair(i); bp == nil {
+			unbound = append(unbound, i)
+		}
+	}
+
+	if len(unbound) != 1 || out[unbound[0]] == nil {
+		return nil, 0, errors.New("expecting one unbound output stream")
+	}
+
+	fr := newFolderReadCloser(out[unbound[0]])
+
 	if si.unpackInfo.digest != nil {
 		return fr, si.unpackInfo.digest[folder], nil
 	}

@@ -49,7 +49,7 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 // NewReader returns a new AES-256-CBC & SHA-256 io.ReadCloser. The Password
 // method must be called before attempting to call Read so that the block
 // cipher is correctly initialised.
-func NewReader(p []byte, _ uint64, readers ...io.ReadCloser) (io.ReadCloser, error) {
+func NewReader(p []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
 	if len(readers) != 1 {
 		return nil, errors.New("aes7z: need exactly one reader")
 	}

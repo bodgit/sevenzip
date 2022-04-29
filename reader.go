@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/bodgit/plumbing"
+	"github.com/bodgit/sevenzip/internal/util"
 	"github.com/bodgit/windows"
 	"github.com/hashicorp/go-multierror"
 	"go4.org/readerutil"
@@ -44,11 +45,6 @@ type Reader struct {
 type ReadCloser struct {
 	f []*os.File
 	Reader
-}
-
-type headerReader interface {
-	io.Reader
-	io.ByteReader
 }
 
 type checksumReadCloser interface {
@@ -179,8 +175,8 @@ func crc32Compare(b []byte, c uint32) int {
 	return bytes.Compare(b, []byte{byte(0xff & (c >> 24)), byte(0xff & (c >> 16)), byte(0xff & (c >> 8)), byte(0xff & c)})
 }
 
-func readUint64(hr headerReader) (uint64, error) {
-	b, err := hr.ReadByte()
+func readUint64(r util.Reader) (uint64, error) {
+	b, err := r.ReadByte()
 	if err != nil {
 		return 0, err
 	}
@@ -192,7 +188,7 @@ func readUint64(hr headerReader) (uint64, error) {
 	}
 
 	for i := 0; i < l; i++ {
-		b, err := hr.ReadByte()
+		b, err := r.ReadByte()
 		if err != nil {
 			return 0, err
 		}
@@ -202,14 +198,14 @@ func readUint64(hr headerReader) (uint64, error) {
 	return v, nil
 }
 
-func readBool(hr headerReader, count uint64) ([]bool, error) {
+func readBool(r util.Reader, count uint64) ([]bool, error) {
 	defined := make([]bool, count)
 
 	var b, mask byte
 	for i := range defined {
 		if mask == 0 {
 			var err error
-			b, err = hr.ReadByte()
+			b, err = r.ReadByte()
 			if err != nil {
 				return nil, err
 			}
@@ -222,14 +218,14 @@ func readBool(hr headerReader, count uint64) ([]bool, error) {
 	return defined, nil
 }
 
-func readOptionalBool(hr headerReader, count uint64) ([]bool, error) {
-	all, err := hr.ReadByte()
+func readOptionalBool(r util.Reader, count uint64) ([]bool, error) {
+	all, err := r.ReadByte()
 	if err != nil {
 		return nil, err
 	}
 
 	if all == 0 {
-		return readBool(hr, count)
+		return readBool(r, count)
 	}
 
 	defined := make([]bool, count)
@@ -240,10 +236,10 @@ func readOptionalBool(hr headerReader, count uint64) ([]bool, error) {
 	return defined, nil
 }
 
-func readSizes(hr headerReader, count uint64) ([]uint64, error) {
+func readSizes(r util.Reader, count uint64) ([]uint64, error) {
 	sizes := make([]uint64, count)
 	for i := uint64(0); i < count; i++ {
-		size, err := readUint64(hr)
+		size, err := readUint64(r)
 		if err != nil {
 			return nil, err
 		}
@@ -252,8 +248,8 @@ func readSizes(hr headerReader, count uint64) ([]uint64, error) {
 	return sizes, nil
 }
 
-func readCRC(hr headerReader, count uint64) ([]uint32, []bool, error) {
-	defined, err := readOptionalBool(hr, count)
+func readCRC(r util.Reader, count uint64) ([]uint32, []bool, error) {
+	defined, err := readOptionalBool(r, count)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -261,7 +257,7 @@ func readCRC(hr headerReader, count uint64) ([]uint32, []bool, error) {
 	crcs := make([]uint32, count)
 	for i := uint64(0); i < count; i++ {
 		var crc uint32
-		if err := binary.Read(hr, binary.LittleEndian, &crc); err != nil {
+		if err := binary.Read(r, binary.LittleEndian, &crc); err != nil {
 			return nil, nil, err
 		}
 		crcs[i] = crc
@@ -270,42 +266,42 @@ func readCRC(hr headerReader, count uint64) ([]uint32, []bool, error) {
 	return crcs, defined, nil
 }
 
-func readPackInfo(hr headerReader) (*packInfo, error) {
+func readPackInfo(r util.Reader) (*packInfo, error) {
 	p := new(packInfo)
 
 	var err error
-	p.position, err = readUint64(hr)
+	p.position, err = readUint64(r)
 	if err != nil {
 		return nil, err
 	}
 
-	p.streams, err = readUint64(hr)
+	p.streams, err = readUint64(r)
 	if err != nil {
 		return nil, err
 	}
 
-	id, err := hr.ReadByte()
+	id, err := r.ReadByte()
 	if err != nil {
 		return nil, err
 	}
 
 	if id == idSize {
-		if p.size, err = readSizes(hr, p.streams); err != nil {
+		if p.size, err = readSizes(r, p.streams); err != nil {
 			return nil, err
 		}
 
-		id, err = hr.ReadByte()
+		id, err = r.ReadByte()
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if id == idCRC {
-		if p.digest, p.defined, err = readCRC(hr, p.streams); err != nil {
+		if p.digest, p.defined, err = readCRC(r, p.streams); err != nil {
 			return nil, err
 		}
 
-		id, err = hr.ReadByte()
+		id, err = r.ReadByte()
 		if err != nil {
 			return nil, err
 		}
@@ -318,16 +314,16 @@ func readPackInfo(hr headerReader) (*packInfo, error) {
 	return p, nil
 }
 
-func readCoder(hr headerReader) (*coder, error) {
+func readCoder(r util.Reader) (*coder, error) {
 	c := new(coder)
 
-	v, err := hr.ReadByte()
+	v, err := r.ReadByte()
 	if err != nil {
 		return nil, err
 	}
 
 	c.id = make([]byte, v&0xf)
-	if n, err := hr.Read(c.id); err != nil || n != int(v&0xf) {
+	if n, err := r.Read(c.id); err != nil || n != int(v&0xf) {
 		if err != nil {
 			return nil, err
 		}
@@ -335,12 +331,12 @@ func readCoder(hr headerReader) (*coder, error) {
 	}
 
 	if v&0x10 != 0 {
-		c.in, err = readUint64(hr)
+		c.in, err = readUint64(r)
 		if err != nil {
 			return nil, err
 		}
 
-		c.out, err = readUint64(hr)
+		c.out, err = readUint64(r)
 		if err != nil {
 			return nil, err
 		}
@@ -349,13 +345,13 @@ func readCoder(hr headerReader) (*coder, error) {
 	}
 
 	if v&0x20 != 0 {
-		size, err := readUint64(hr)
+		size, err := readUint64(r)
 		if err != nil {
 			return nil, err
 		}
 
 		c.properties = make([]byte, size)
-		if n, err := hr.Read(c.properties); err != nil || n != int(size) {
+		if n, err := r.Read(c.properties); err != nil || n != int(size) {
 			if err != nil {
 				return nil, err
 			}
@@ -366,35 +362,33 @@ func readCoder(hr headerReader) (*coder, error) {
 	return c, nil
 }
 
-func readFolder(hr headerReader) (*folder, error) {
+func readFolder(r util.Reader) (*folder, error) {
 	f := new(folder)
 
-	coders, err := readUint64(hr)
+	coders, err := readUint64(r)
 	if err != nil {
 		return nil, err
 	}
 
-	in, out := uint64(0), uint64(0)
-
 	f.coder = make([]*coder, coders)
 	for i := uint64(0); i < coders; i++ {
-		if f.coder[i], err = readCoder(hr); err != nil {
+		if f.coder[i], err = readCoder(r); err != nil {
 			return nil, err
 		}
-		in += f.coder[i].in
-		out += f.coder[i].out
+		f.in += f.coder[i].in
+		f.out += f.coder[i].out
 	}
 
-	bindPairs := out - 1
+	bindPairs := f.out - 1
 
 	f.bindPair = make([]*bindPair, bindPairs)
 	for i := uint64(0); i < bindPairs; i++ {
-		in, err := readUint64(hr)
+		in, err := readUint64(r)
 		if err != nil {
 			return nil, err
 		}
 
-		out, err := readUint64(hr)
+		out, err := readUint64(r)
 		if err != nil {
 			return nil, err
 		}
@@ -405,11 +399,11 @@ func readFolder(hr headerReader) (*folder, error) {
 		}
 	}
 
-	f.packedStreams = in - bindPairs
+	f.packedStreams = f.in - bindPairs
 
 	if f.packedStreams == 1 {
 		f.packed = []uint64{}
-		for i := uint64(0); i < in; i++ {
+		for i := uint64(0); i < f.in; i++ {
 			if f.findInBindPair(i) == nil {
 				f.packed = append(f.packed, i)
 			}
@@ -417,7 +411,7 @@ func readFolder(hr headerReader) (*folder, error) {
 	} else {
 		f.packed = make([]uint64, f.packedStreams)
 		for i := uint64(0); i < f.packedStreams; i++ {
-			if f.packed[i], err = readUint64(hr); err != nil {
+			if f.packed[i], err = readUint64(r); err != nil {
 				return nil, err
 			}
 		}
@@ -426,28 +420,28 @@ func readFolder(hr headerReader) (*folder, error) {
 	return f, nil
 }
 
-func readUnpackInfo(hr headerReader) (*unpackInfo, error) {
+func readUnpackInfo(r util.Reader) (*unpackInfo, error) {
 	u := new(unpackInfo)
 
-	if id, err := hr.ReadByte(); err != nil || id != idFolder {
+	if id, err := r.ReadByte(); err != nil || id != idFolder {
 		if err != nil {
 			return nil, err
 		}
 		return nil, errUnexpectedID
 	}
 
-	folders, err := readUint64(hr)
+	folders, err := readUint64(r)
 	if err != nil {
 		return nil, err
 	}
 
-	external, err := hr.ReadByte()
+	external, err := r.ReadByte()
 	if err != nil {
 		return nil, err
 	}
 
 	if external > 0 {
-		_, err := readUint64(hr)
+		_, err := readUint64(r)
 		if err != nil {
 			return nil, err
 		}
@@ -460,12 +454,12 @@ func readUnpackInfo(hr headerReader) (*unpackInfo, error) {
 
 	u.folder = make([]*folder, folders)
 	for i := uint64(0); i < folders; i++ {
-		if u.folder[i], err = readFolder(hr); err != nil {
+		if u.folder[i], err = readFolder(r); err != nil {
 			return nil, err
 		}
 	}
 
-	if id, err := hr.ReadByte(); err != nil || id != idCodersUnpackSize {
+	if id, err := r.ReadByte(); err != nil || id != idCodersUnpackSize {
 		if err != nil {
 			return nil, err
 		}
@@ -479,23 +473,23 @@ func readUnpackInfo(hr headerReader) (*unpackInfo, error) {
 		}
 		f.size = make([]uint64, total)
 		for i := range f.size {
-			if f.size[i], err = readUint64(hr); err != nil {
+			if f.size[i], err = readUint64(r); err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	id, err := hr.ReadByte()
+	id, err := r.ReadByte()
 	if err != nil {
 		return nil, err
 	}
 
 	if id == idCRC {
-		if u.digest, u.defined, err = readCRC(hr, folders); err != nil {
+		if u.digest, u.defined, err = readCRC(r, folders); err != nil {
 			return nil, err
 		}
 
-		id, err = hr.ReadByte()
+		id, err = r.ReadByte()
 		if err != nil {
 			return nil, err
 		}
@@ -508,10 +502,10 @@ func readUnpackInfo(hr headerReader) (*unpackInfo, error) {
 	return u, nil
 }
 
-func readSubStreamsInfo(hr headerReader, folder []*folder) (*subStreamsInfo, error) {
+func readSubStreamsInfo(r util.Reader, folder []*folder) (*subStreamsInfo, error) {
 	s := new(subStreamsInfo)
 
-	id, err := hr.ReadByte()
+	id, err := r.ReadByte()
 	if err != nil {
 		return nil, err
 	}
@@ -519,12 +513,12 @@ func readSubStreamsInfo(hr headerReader, folder []*folder) (*subStreamsInfo, err
 	s.streams = make([]uint64, len(folder))
 	if id == idNumUnpackStream {
 		for i := range s.streams {
-			if s.streams[i], err = readUint64(hr); err != nil {
+			if s.streams[i], err = readUint64(r); err != nil {
 				return nil, err
 			}
 		}
 
-		id, err = hr.ReadByte()
+		id, err = r.ReadByte()
 		if err != nil {
 			return nil, err
 		}
@@ -546,7 +540,7 @@ func readSubStreamsInfo(hr headerReader, folder []*folder) (*subStreamsInfo, err
 		for i := range s.streams {
 			total := uint64(0)
 			for j := uint64(1); j < s.streams[i]; j++ {
-				if s.size[k], err = readUint64(hr); err != nil {
+				if s.size[k], err = readUint64(r); err != nil {
 					return nil, err
 				}
 				total += s.size[k]
@@ -556,18 +550,18 @@ func readSubStreamsInfo(hr headerReader, folder []*folder) (*subStreamsInfo, err
 			k++
 		}
 
-		id, err = hr.ReadByte()
+		id, err = r.ReadByte()
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if id == idCRC {
-		if s.digest, s.defined, err = readCRC(hr, files); err != nil {
+		if s.digest, s.defined, err = readCRC(r, files); err != nil {
 			return nil, err
 		}
 
-		id, err = hr.ReadByte()
+		id, err = r.ReadByte()
 		if err != nil {
 			return nil, err
 		}
@@ -580,42 +574,42 @@ func readSubStreamsInfo(hr headerReader, folder []*folder) (*subStreamsInfo, err
 	return s, nil
 }
 
-func readStreamsInfo(hr headerReader) (*streamsInfo, error) {
+func readStreamsInfo(r util.Reader) (*streamsInfo, error) {
 	s := new(streamsInfo)
 
-	id, err := hr.ReadByte()
+	id, err := r.ReadByte()
 	if err != nil {
 		return nil, err
 	}
 
 	if id == idPackInfo {
-		if s.packInfo, err = readPackInfo(hr); err != nil {
+		if s.packInfo, err = readPackInfo(r); err != nil {
 			return nil, err
 		}
 
-		id, err = hr.ReadByte()
+		id, err = r.ReadByte()
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if id == idUnpackInfo {
-		if s.unpackInfo, err = readUnpackInfo(hr); err != nil {
+		if s.unpackInfo, err = readUnpackInfo(r); err != nil {
 			return nil, err
 		}
 
-		id, err = hr.ReadByte()
+		id, err = r.ReadByte()
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if id == idSubStreamsInfo {
-		if s.subStreamsInfo, err = readSubStreamsInfo(hr, s.unpackInfo.folder); err != nil {
+		if s.subStreamsInfo, err = readSubStreamsInfo(r, s.unpackInfo.folder); err != nil {
 			return nil, err
 		}
 
-		id, err = hr.ReadByte()
+		id, err = r.ReadByte()
 		if err != nil {
 			return nil, err
 		}
@@ -628,19 +622,19 @@ func readStreamsInfo(hr headerReader) (*streamsInfo, error) {
 	return s, nil
 }
 
-func readTimes(hr headerReader, count, length uint64) ([]time.Time, error) {
-	_, err := readOptionalBool(hr, count)
+func readTimes(r util.Reader, count, length uint64) ([]time.Time, error) {
+	_, err := readOptionalBool(r, count)
 	if err != nil {
 		return nil, err
 	}
 
-	external, err := hr.ReadByte()
+	external, err := r.ReadByte()
 	if err != nil {
 		return nil, err
 	}
 
 	if external > 0 {
-		_, err := readUint64(hr)
+		_, err := readUint64(r)
 		if err != nil {
 			return nil, err
 		}
@@ -654,7 +648,7 @@ func readTimes(hr headerReader, count, length uint64) ([]time.Time, error) {
 	times := make([]time.Time, 0, count)
 	for i := uint64(0); i < count; i++ {
 		var ft windows.Filetime
-		if err := binary.Read(hr, binary.LittleEndian, &ft); err != nil {
+		if err := binary.Read(r, binary.LittleEndian, &ft); err != nil {
 			return nil, err
 		}
 		times = append(times, time.Unix(0, ft.Nanoseconds()).UTC())
@@ -679,14 +673,14 @@ func splitNull(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	return
 }
 
-func readNames(hr headerReader, count, length uint64) ([]string, error) {
-	external, err := hr.ReadByte()
+func readNames(r util.Reader, count, length uint64) ([]string, error) {
+	external, err := r.ReadByte()
 	if err != nil {
 		return nil, err
 	}
 
 	if external > 0 {
-		_, err := readUint64(hr)
+		_, err := readUint64(r)
 		if err != nil {
 			return nil, err
 		}
@@ -698,7 +692,7 @@ func readNames(hr headerReader, count, length uint64) ([]string, error) {
 	}
 
 	utf16le := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
-	scanner := bufio.NewScanner(transform.NewReader(io.LimitReader(hr, int64(length-1)), utf16le.NewDecoder()))
+	scanner := bufio.NewScanner(transform.NewReader(io.LimitReader(r, int64(length-1)), utf16le.NewDecoder()))
 	scanner.Split(splitNull)
 
 	names, i := make([]string, 0, count), uint64(0)
@@ -715,19 +709,19 @@ func readNames(hr headerReader, count, length uint64) ([]string, error) {
 	return names, nil
 }
 
-func readAttributes(hr headerReader, count, length uint64) ([]uint32, error) {
-	_, err := readOptionalBool(hr, count)
+func readAttributes(r util.Reader, count, length uint64) ([]uint32, error) {
+	_, err := readOptionalBool(r, count)
 	if err != nil {
 		return nil, err
 	}
 
-	external, err := hr.ReadByte()
+	external, err := r.ReadByte()
 	if err != nil {
 		return nil, err
 	}
 
 	if external > 0 {
-		_, err := readUint64(hr)
+		_, err := readUint64(r)
 		if err != nil {
 			return nil, err
 		}
@@ -740,7 +734,7 @@ func readAttributes(hr headerReader, count, length uint64) ([]uint32, error) {
 
 	attributes := make([]uint32, count)
 	for i := uint64(0); i < count; i++ {
-		if err := binary.Read(hr, binary.LittleEndian, &attributes[i]); err != nil {
+		if err := binary.Read(r, binary.LittleEndian, &attributes[i]); err != nil {
 			return nil, err
 		}
 	}
@@ -748,10 +742,10 @@ func readAttributes(hr headerReader, count, length uint64) ([]uint32, error) {
 	return attributes, nil
 }
 
-func readFilesInfo(hr headerReader) (*filesInfo, error) {
+func readFilesInfo(r util.Reader) (*filesInfo, error) {
 	f := new(filesInfo)
 
-	files, err := readUint64(hr)
+	files, err := readUint64(r)
 	if err != nil {
 		return nil, err
 	}
@@ -759,7 +753,7 @@ func readFilesInfo(hr headerReader) (*filesInfo, error) {
 
 	var emptyStreams uint64
 	for {
-		property, err := hr.ReadByte()
+		property, err := r.ReadByte()
 		if err != nil {
 			return nil, err
 		}
@@ -768,14 +762,14 @@ func readFilesInfo(hr headerReader) (*filesInfo, error) {
 			break
 		}
 
-		length, err := readUint64(hr)
+		length, err := readUint64(r)
 		if err != nil {
 			return nil, err
 		}
 
 		switch property {
 		case idEmptyStream:
-			empty, err := readBool(hr, files)
+			empty, err := readBool(r, files)
 			if err != nil {
 				return nil, err
 			}
@@ -787,7 +781,7 @@ func readFilesInfo(hr headerReader) (*filesInfo, error) {
 				}
 			}
 		case idEmptyFile:
-			empty, err := readBool(hr, emptyStreams)
+			empty, err := readBool(r, emptyStreams)
 			if err != nil {
 				return nil, err
 			}
@@ -800,7 +794,7 @@ func readFilesInfo(hr headerReader) (*filesInfo, error) {
 				j++
 			}
 		case idCTime:
-			times, err := readTimes(hr, files, length)
+			times, err := readTimes(r, files, length)
 			if err != nil {
 				return nil, err
 			}
@@ -809,7 +803,7 @@ func readFilesInfo(hr headerReader) (*filesInfo, error) {
 				f.file[i].Created = t
 			}
 		case idATime:
-			times, err := readTimes(hr, files, length)
+			times, err := readTimes(r, files, length)
 			if err != nil {
 				return nil, err
 			}
@@ -818,7 +812,7 @@ func readFilesInfo(hr headerReader) (*filesInfo, error) {
 				f.file[i].Accessed = t
 			}
 		case idMTime:
-			times, err := readTimes(hr, files, length)
+			times, err := readTimes(r, files, length)
 			if err != nil {
 				return nil, err
 			}
@@ -827,7 +821,7 @@ func readFilesInfo(hr headerReader) (*filesInfo, error) {
 				f.file[i].Modified = t
 			}
 		case idName:
-			names, err := readNames(hr, files, length)
+			names, err := readNames(r, files, length)
 			if err != nil {
 				return nil, err
 			}
@@ -836,7 +830,7 @@ func readFilesInfo(hr headerReader) (*filesInfo, error) {
 				f.file[i].Name = n
 			}
 		case idWinAttributes:
-			attributes, err := readAttributes(hr, files, length)
+			attributes, err := readAttributes(r, files, length)
 			if err != nil {
 				return nil, err
 			}
@@ -847,7 +841,7 @@ func readFilesInfo(hr headerReader) (*filesInfo, error) {
 		case idStartPos:
 			return nil, errors.New("sevenzip: TODO idStartPos")
 		case idDummy:
-			if _, err := io.CopyN(ioutil.Discard, hr, int64(length)); err != nil {
+			if _, err := io.CopyN(ioutil.Discard, r, int64(length)); err != nil {
 				return nil, err
 			}
 		default:
@@ -858,10 +852,10 @@ func readFilesInfo(hr headerReader) (*filesInfo, error) {
 	return f, nil
 }
 
-func readHeader(hr headerReader) (*header, error) {
+func readHeader(r util.Reader) (*header, error) {
 	h := new(header)
 
-	id, err := hr.ReadByte()
+	id, err := r.ReadByte()
 	if err != nil {
 		return nil, err
 	}
@@ -869,7 +863,7 @@ func readHeader(hr headerReader) (*header, error) {
 	if id == idArchiveProperties {
 		return nil, errors.New("sevenzip: TODO idArchiveProperties")
 
-		id, err = hr.ReadByte()
+		id, err = r.ReadByte()
 		if err != nil {
 			return nil, err
 		}
@@ -878,29 +872,29 @@ func readHeader(hr headerReader) (*header, error) {
 	if id == idAdditionalStreamsInfo {
 		return nil, errors.New("sevenzip: TODO idAdditionalStreamsInfo")
 
-		id, err = hr.ReadByte()
+		id, err = r.ReadByte()
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if id == idMainStreamsInfo {
-		if h.streamsInfo, err = readStreamsInfo(hr); err != nil {
+		if h.streamsInfo, err = readStreamsInfo(r); err != nil {
 			return nil, err
 		}
 
-		id, err = hr.ReadByte()
+		id, err = r.ReadByte()
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if id == idFilesInfo {
-		if h.filesInfo, err = readFilesInfo(hr); err != nil {
+		if h.filesInfo, err = readFilesInfo(r); err != nil {
 			return nil, err
 		}
 
-		id, err = hr.ReadByte()
+		id, err = r.ReadByte()
 		if err != nil {
 			return nil, err
 		}
@@ -925,15 +919,7 @@ func readHeader(hr headerReader) (*header, error) {
 
 func (z *Reader) folderReader(si *streamsInfo, f int) (io.ReadCloser, uint32, error) {
 	// Create a SectionReader covering all of the streams data
-	sr := io.NewSectionReader(z.r, z.start, z.end)
-
-	// Seek to where the folder in this particular stream starts
-	if _, err := sr.Seek(si.FolderOffset(f), io.SeekStart); err != nil {
-		return nil, 0, err
-	}
-
-	// Adding buffering here makes a noticeable performance difference
-	return si.FolderReader(ioutil.NopCloser(bufio.NewReader(sr)), f, z.p)
+	return si.FolderReader(io.NewSectionReader(z.r, z.start, z.end), f, z.p)
 }
 
 func (z *Reader) init(r io.ReaderAt, size int64) error {
