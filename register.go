@@ -9,6 +9,7 @@ import (
 	"github.com/bodgit/sevenzip/internal/bcj2"
 	"github.com/bodgit/sevenzip/internal/bzip2"
 	"github.com/bodgit/sevenzip/internal/deflate"
+	"github.com/bodgit/sevenzip/internal/delta"
 	"github.com/bodgit/sevenzip/internal/lzma"
 	"github.com/bodgit/sevenzip/internal/lzma2"
 )
@@ -30,6 +31,8 @@ func init() {
 		}
 		return readers[0], nil
 	}))
+	// Delta
+	RegisterDecompressor([]byte{0x03}, Decompressor(delta.NewReader))
 	// LZMA
 	RegisterDecompressor([]byte{0x03, 0x01, 0x01}, Decompressor(lzma.NewReader))
 	// BCJ2
