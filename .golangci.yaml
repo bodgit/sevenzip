@@ -1,3 +1,18 @@
 ---
 linters:
   enable-all: true
+  disable:
+    - cyclop
+    - exhaustivestruct
+    - funlen
+    - gochecknoglobals
+    - gochecknoinits
+    - gocognit
+    - gocyclo
+    - goerr113
+    - gomnd
+    - godox
+    - ireturn
+    - nestif
+    - varnamelen
+    - wrapcheck
