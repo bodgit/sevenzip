@@ -131,16 +131,8 @@ func (f *folder) coderReader(readers []io.ReadCloser, coder uint64, password str
 }
 
 type folderReadCloser struct {
-	rc io.ReadCloser
-	h  hash.Hash
-}
-
-func (rc *folderReadCloser) Read(p []byte) (int, error) {
-	return rc.rc.Read(p)
-}
-
-func (rc *folderReadCloser) Close() error {
-	return rc.rc.Close()
+	io.ReadCloser
+	h hash.Hash
 }
 
 func (rc *folderReadCloser) Checksum() []byte {
@@ -150,7 +142,7 @@ func (rc *folderReadCloser) Checksum() []byte {
 func newFolderReadCloser(rc io.ReadCloser) io.ReadCloser {
 	nrc := new(folderReadCloser)
 	nrc.h = crc32.NewIEEE()
-	nrc.rc = plumbing.TeeReadCloser(rc, nrc.h)
+	nrc.ReadCloser = plumbing.TeeReadCloser(rc, nrc.h)
 
 	return nrc
 }
