@@ -31,13 +31,13 @@ const (
 	idNumUnpackStream
 	idEmptyStream
 	idEmptyFile
-	idAnti
+	idAnti //nolint:deadcode,varcheck
 	idName
 	idCTime
 	idATime
 	idMTime
 	idWinAttributes
-	idComment
+	idComment //nolint:deadcode,varcheck
 	idEncodedHeader
 	idStartPos
 	idDummy
