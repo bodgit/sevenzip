@@ -23,14 +23,17 @@ type Decompressor func([]byte, uint64, []io.ReadCloser) (io.ReadCloser, error)
 
 var decompressors sync.Map
 
+func newCopyReader(_ []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
+	if len(readers) != 1 {
+		return nil, errors.New("sevenzip: need exactly one reader")
+	}
+	// just return the passed io.ReadCloser)
+	return readers[0], nil
+}
+
 func init() {
-	// Copy (just return the passed io.ReadCloser)
-	RegisterDecompressor([]byte{0x00}, Decompressor(func(_ []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
-		if len(readers) != 1 {
-			return nil, errors.New("sevenzip: need exactly one reader")
-		}
-		return readers[0], nil
-	}))
+	// Copy
+	RegisterDecompressor([]byte{0x00}, Decompressor(newCopyReader))
 	// Delta
 	RegisterDecompressor([]byte{0x03}, Decompressor(delta.NewReader))
 	// LZMA
