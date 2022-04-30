@@ -47,7 +47,9 @@ func NewReader(_ []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, erro
 
 	fr, ok := flateReaderPool.Get().(io.ReadCloser)
 	if ok {
-		fr.(flate.Resetter).Reset(readers[0], nil)
+		if err := fr.(flate.Resetter).Reset(readers[0], nil); err != nil {
+			return nil, err
+		}
 	} else {
 		fr = flate.NewReader(readers[0])
 	}
