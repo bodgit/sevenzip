@@ -86,7 +86,9 @@ func ExampleOpenReader() {
 	// 10
 }
 
-func benchmarkArchive(file string, b *testing.B) {
+func benchmarkArchive(b *testing.B, file string) {
+	b.Helper()
+
 	h := crc32.NewIEEE()
 
 	for n := 0; n < b.N; n++ {
@@ -121,29 +123,29 @@ func benchmarkArchive(file string, b *testing.B) {
 }
 
 func BenchmarkBzip2(b *testing.B) {
-	benchmarkArchive("bzip2.7z", b)
+	benchmarkArchive(b, "bzip2.7z")
 }
 
 func BenchmarkCopy(b *testing.B) {
-	benchmarkArchive("copy.7z", b)
+	benchmarkArchive(b, "copy.7z")
 }
 
 func BenchmarkDeflate(b *testing.B) {
-	benchmarkArchive("deflate.7z", b)
+	benchmarkArchive(b, "deflate.7z")
 }
 
 func BenchmarkDelta(b *testing.B) {
-	benchmarkArchive("delta.7z", b)
+	benchmarkArchive(b, "delta.7z")
 }
 
 func BenchmarkLZMA(b *testing.B) {
-	benchmarkArchive("lzma.7z", b)
+	benchmarkArchive(b, "lzma.7z")
 }
 
 func BenchmarkLZMA2(b *testing.B) {
-	benchmarkArchive("lzma2.7z", b)
+	benchmarkArchive(b, "lzma2.7z")
 }
 
 func BenchmarkBCJ2(b *testing.B) {
-	benchmarkArchive("bcj2.7z", b)
+	benchmarkArchive(b, "bcj2.7z")
 }
