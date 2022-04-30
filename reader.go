@@ -47,11 +47,6 @@ type ReadCloser struct {
 	Reader
 }
 
-type checksumReadCloser interface {
-	io.ReadCloser
-	Checksum() []byte
-}
-
 type File struct {
 	FileHeader
 	zip    *Reader
@@ -962,7 +957,7 @@ func readHeader(r util.Reader) (*header, error) {
 	return h, nil
 }
 
-func (z *Reader) folderReader(si *streamsInfo, f int) (io.ReadCloser, uint32, error) {
+func (z *Reader) folderReader(si *streamsInfo, f int) (*folderReadCloser, uint32, error) {
 	// Create a SectionReader covering all of the streams data
 	return si.FolderReader(io.NewSectionReader(z.r, z.start, z.end), f, z.p)
 }
@@ -1075,10 +1070,8 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 			return err
 		}
 
-		if cr, ok := fr.(checksumReadCloser); ok && crc != 0 {
-			if !util.CRC32Equal(cr.Checksum(), crc) {
-				return errChecksum
-			}
+		if crc != 0 && !util.CRC32Equal(fr.Checksum(), crc) {
+			return errChecksum
 		}
 	}
 

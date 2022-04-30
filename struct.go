@@ -139,7 +139,7 @@ func (rc *folderReadCloser) Checksum() []byte {
 	return rc.h.Sum(nil)
 }
 
-func newFolderReadCloser(rc io.ReadCloser) io.ReadCloser {
+func newFolderReadCloser(rc io.ReadCloser) *folderReadCloser {
 	nrc := new(folderReadCloser)
 	nrc.h = crc32.NewIEEE()
 	nrc.ReadCloser = plumbing.TeeReadCloser(rc, nrc.h)
@@ -220,7 +220,7 @@ func (si *streamsInfo) folderOffset(folder int) int64 {
 	return int64(si.packInfo.position + offset)
 }
 
-func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) (io.ReadCloser, uint32, error) {
+func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) (*folderReadCloser, uint32, error) {
 	f := si.unpackInfo.folder[folder]
 	in := make([]io.ReadCloser, f.in)
 	out := make([]io.ReadCloser, f.out)
