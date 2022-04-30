@@ -100,7 +100,7 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 		return 0, errors.New("bcj2: Read after Close")
 	}
 
-	if err := rc.read(); err != nil && err != io.EOF {
+	if err := rc.read(); err != nil && !errors.Is(err, io.EOF) {
 		return 0, err
 	}
 
