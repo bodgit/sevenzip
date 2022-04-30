@@ -125,7 +125,7 @@ func (rc *readCloser) decode(i int) (bool, error) {
 		rc.nrange = newBound
 		rc.sd[i] += (bitModelTotal - rc.sd[i]) >> numMoveBits
 		if err := rc.update(); err != nil {
-			return false, nil
+			return false, err
 		}
 		return false, nil
 	}
@@ -134,7 +134,7 @@ func (rc *readCloser) decode(i int) (bool, error) {
 	rc.code -= newBound
 	rc.sd[i] -= rc.sd[i] >> numMoveBits
 	if err := rc.update(); err != nil {
-		return false, nil
+		return false, err
 	}
 	return true, nil
 }
