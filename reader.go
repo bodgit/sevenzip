@@ -631,7 +631,7 @@ func readStreamsInfo(r util.Reader) (*streamsInfo, error) {
 	return s, nil
 }
 
-func readTimes(r util.Reader, count, length uint64) ([]time.Time, error) {
+func readTimes(r util.Reader, count uint64) ([]time.Time, error) {
 	_, err := readOptionalBool(r, count)
 	if err != nil {
 		return nil, err
@@ -719,7 +719,7 @@ func readNames(r util.Reader, count, length uint64) ([]string, error) {
 	return names, nil
 }
 
-func readAttributes(r util.Reader, count, length uint64) ([]uint32, error) {
+func readAttributes(r util.Reader, count uint64) ([]uint32, error) {
 	_, err := readOptionalBool(r, count)
 	if err != nil {
 		return nil, err
@@ -804,7 +804,7 @@ func readFilesInfo(r util.Reader) (*filesInfo, error) {
 				j++
 			}
 		case idCTime:
-			times, err := readTimes(r, files, length)
+			times, err := readTimes(r, files)
 			if err != nil {
 				return nil, err
 			}
@@ -813,7 +813,7 @@ func readFilesInfo(r util.Reader) (*filesInfo, error) {
 				f.file[i].Created = t
 			}
 		case idATime:
-			times, err := readTimes(r, files, length)
+			times, err := readTimes(r, files)
 			if err != nil {
 				return nil, err
 			}
@@ -822,7 +822,7 @@ func readFilesInfo(r util.Reader) (*filesInfo, error) {
 				f.file[i].Accessed = t
 			}
 		case idMTime:
-			times, err := readTimes(r, files, length)
+			times, err := readTimes(r, files)
 			if err != nil {
 				return nil, err
 			}
@@ -840,7 +840,7 @@ func readFilesInfo(r util.Reader) (*filesInfo, error) {
 				f.file[i].Name = n
 			}
 		case idWinAttributes:
-			attributes, err := readAttributes(r, files, length)
+			attributes, err := readAttributes(r, files)
 			if err != nil {
 				return nil, err
 			}
