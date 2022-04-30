@@ -16,9 +16,8 @@ import (
 
 // Decompressor describes the function signature that decompression/decryption
 // methods must implement to return a new instance of themselves. They are
-// passed any property bytes, the size of the stream and a varying number of,
-// but nearly always one, io.ReadCloser providing the stream of bytes. Blame
-// (currently unimplemented) BCJ2 for that one.
+// passed any property bytes, the size of the stream and a slice of at least
+// one io.ReadCloser's providing the stream(s) of bytes.
 type Decompressor func([]byte, uint64, []io.ReadCloser) (io.ReadCloser, error)
 
 var decompressors sync.Map
