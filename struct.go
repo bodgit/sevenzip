@@ -43,9 +43,7 @@ const (
 	idDummy
 )
 
-var (
-	signature = []byte{'7', 'z', 0xbc, 0xaf, 0x27, 0x1c}
-)
+var signature = []byte{'7', 'z', 0xbc, 0xaf, 0x27, 0x1c}
 
 type cryptoReadCloser interface {
 	io.ReadCloser
@@ -376,19 +374,19 @@ func (h *FileHeader) Mode() (mode os.FileMode) {
 
 func msdosModeToFileMode(m uint32) (mode os.FileMode) {
 	if m&msdosDir != 0 {
-		mode = os.ModeDir | 0777
+		mode = os.ModeDir | 0o777
 	} else {
-		mode = 0666
+		mode = 0o666
 	}
 	if m&msdosReadOnly != 0 {
-		mode &^= 0222
+		mode &^= 0o222
 	}
 
 	return mode
 }
 
 func unixModeToFileMode(m uint32) os.FileMode {
-	mode := os.FileMode(m & 0777)
+	mode := os.FileMode(m & 0o777)
 	switch m & sIFMT {
 	case sIFBLK:
 		mode |= os.ModeDevice

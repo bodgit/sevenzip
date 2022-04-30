@@ -1046,7 +1046,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 
 	z.si = header.streamsInfo
 
-	//spew.Dump(header)
+	// spew.Dump(header)
 
 	folder, offset := 0, int64(0)
 	z.File = make([]*File, 0, len(header.filesInfo.file))
