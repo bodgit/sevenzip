@@ -1,4 +1,4 @@
-package sevenzip
+package sevenzip_test
 
 import (
 	"errors"
@@ -7,6 +7,9 @@ import (
 	"io"
 	"path/filepath"
 	"testing"
+
+	"github.com/bodgit/sevenzip"
+	"github.com/bodgit/sevenzip/internal/util"
 )
 
 func TestOpenReader(t *testing.T) {
@@ -38,7 +41,7 @@ func TestOpenReader(t *testing.T) {
 
 		t.Run(table.name, func(t *testing.T) {
 			t.Parallel()
-			r, err := OpenReader(filepath.Join("testdata", table.file))
+			r, err := sevenzip.OpenReader(filepath.Join("testdata", table.file))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -70,7 +73,7 @@ func TestOpenReaderWithPassword(t *testing.T) {
 
 		t.Run(table.name, func(t *testing.T) {
 			t.Parallel()
-			r, err := OpenReaderWithPassword(filepath.Join("testdata", table.file), table.password)
+			r, err := sevenzip.OpenReaderWithPassword(filepath.Join("testdata", table.file), table.password)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -80,7 +83,7 @@ func TestOpenReaderWithPassword(t *testing.T) {
 }
 
 func ExampleOpenReader() {
-	r, err := OpenReader(filepath.Join("testdata", "multi.7z.001"))
+	r, err := sevenzip.OpenReader(filepath.Join("testdata", "multi.7z.001"))
 	if err != nil {
 		panic(err)
 	}
@@ -107,7 +110,7 @@ func benchmarkArchive(b *testing.B, file string) {
 	h := crc32.NewIEEE()
 
 	for n := 0; n < b.N; n++ {
-		r, err := OpenReader(filepath.Join("testdata", file))
+		r, err := sevenzip.OpenReader(filepath.Join("testdata", file))
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -128,7 +131,7 @@ func benchmarkArchive(b *testing.B, file string) {
 
 			rc.Close()
 
-			if crc32Compare(h.Sum(nil), f.CRC32) != 0 {
+			if !util.CRC32Equal(h.Sum(nil), f.CRC32) {
 				b.Fatal(errors.New("CRC doesn't match"))
 			}
 		}

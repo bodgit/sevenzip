@@ -183,10 +183,6 @@ func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
 	return NewReaderWithPassword(r, size, "")
 }
 
-func crc32Compare(b []byte, c uint32) int {
-	return bytes.Compare(b, []byte{byte(0xff & (c >> 24)), byte(0xff & (c >> 16)), byte(0xff & (c >> 8)), byte(0xff & c)})
-}
-
 func readUint64(r io.ByteReader) (uint64, error) {
 	b, err := r.ReadByte()
 	if err != nil {
