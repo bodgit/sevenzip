@@ -62,5 +62,6 @@ func decompressor(method []byte) Decompressor {
 	if !ok {
 		return nil
 	}
+
 	return di.(Decompressor)
 }

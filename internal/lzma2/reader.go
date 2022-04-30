@@ -18,6 +18,7 @@ func (rc *readCloser) Close() error {
 		err = rc.c.Close()
 		rc.c, rc.r = nil, nil
 	}
+
 	return err
 }
 
@@ -25,6 +26,7 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 	if rc.r == nil {
 		return 0, errors.New("lzma2: Read after Close")
 	}
+
 	return rc.r.Read(p)
 }
 

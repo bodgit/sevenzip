@@ -90,6 +90,7 @@ func (rc *readCloser) Close() error {
 	if rc.main != nil {
 		err = multierror.Append(err, rc.main.Close(), rc.call.Close(), rc.jump.Close(), rc.rd.Close())
 	}
+
 	return err.ErrorOrNil()
 }
 
@@ -127,6 +128,7 @@ func (rc *readCloser) decode(i int) (bool, error) {
 		if err := rc.update(); err != nil {
 			return false, err
 		}
+
 		return false, nil
 	}
 
@@ -136,6 +138,7 @@ func (rc *readCloser) decode(i int) (bool, error) {
 	if err := rc.update(); err != nil {
 		return false, err
 	}
+
 	return true, nil
 }
 

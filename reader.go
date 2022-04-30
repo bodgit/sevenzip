@@ -92,6 +92,7 @@ func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
 	info, err := f.Stat()
 	if err != nil {
 		err = multierror.Append(err, f.Close())
+
 		return nil, err
 	}
 
@@ -110,6 +111,7 @@ func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
 				for _, file := range files {
 					err = multierror.Append(err, file.Close())
 				}
+
 				return nil, err
 			}
 			files = append(files, f)
@@ -119,6 +121,7 @@ func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
 				for _, file := range files {
 					err = multierror.Append(err, file.Close())
 				}
+
 				return nil, err
 			}
 
@@ -134,6 +137,7 @@ func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
 		for _, file := range files {
 			err = multierror.Append(err, file.Close())
 		}
+
 		return nil, err
 	}
 	r.f = files
@@ -245,6 +249,7 @@ func readSizes(r io.ByteReader, count uint64) ([]uint64, error) {
 		}
 		sizes[i] = size
 	}
+
 	return sizes, nil
 }
 
@@ -327,6 +332,7 @@ func readCoder(r util.Reader) (*coder, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		return nil, errIncompleteRead
 	}
 
@@ -355,6 +361,7 @@ func readCoder(r util.Reader) (*coder, error) {
 			if err != nil {
 				return nil, err
 			}
+
 			return nil, errIncompleteRead
 		}
 	}
@@ -427,6 +434,7 @@ func readUnpackInfo(r util.Reader) (*unpackInfo, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		return nil, errUnexpectedID
 	}
 
@@ -463,6 +471,7 @@ func readUnpackInfo(r util.Reader) (*unpackInfo, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		return nil, errUnexpectedID
 	}
 
@@ -706,6 +715,7 @@ func readNames(r util.Reader, count, length uint64) ([]string, error) {
 	if i != count {
 		return nil, errors.New("sevenzip: wrong number of filenames")
 	}
+
 	return names, nil
 }
 
@@ -1019,6 +1029,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 			if err != nil {
 				return err
 			}
+
 			return errUnexpectedID
 		}
 
@@ -1074,5 +1085,6 @@ func (rc *ReadCloser) Close() error {
 	for _, f := range rc.f {
 		err = multierror.Append(err, f.Close())
 	}
+
 	return err.ErrorOrNil()
 }

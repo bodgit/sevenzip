@@ -98,6 +98,7 @@ func (f *folder) findInBindPair(i uint64) *bindPair {
 			return v
 		}
 	}
+
 	return nil
 }
 
@@ -107,6 +108,7 @@ func (f *folder) findOutBindPair(i uint64) *bindPair {
 			return v
 		}
 	}
+
 	return nil
 }
 
@@ -150,6 +152,7 @@ func newFolderReadCloser(rc io.ReadCloser) io.ReadCloser {
 	nrc := new(folderReadCloser)
 	nrc.h = crc32.NewIEEE()
 	nrc.rc = plumbing.TeeReadCloser(rc, nrc.h)
+
 	return nrc
 }
 
@@ -162,6 +165,7 @@ func (f *folder) unpackSize() uint64 {
 			return f.size[i]
 		}
 	}
+
 	return f.size[len(f.size)-1]
 }
 
@@ -202,6 +206,7 @@ func (si *streamsInfo) FileFolderAndSize(file int) (int, uint64) {
 	if streams == 1 {
 		return folder, si.unpackInfo.folder[folder].size[len(si.unpackInfo.folder[folder].coder)-1]
 	}
+
 	return folder, si.subStreamsInfo.size[file]
 }
 
@@ -213,6 +218,7 @@ func (si *streamsInfo) folderOffset(folder int) int64 {
 		}
 		k += si.unpackInfo.folder[i].packedStreams
 	}
+
 	return int64(si.packInfo.position + offset)
 }
 
@@ -278,6 +284,7 @@ func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) 
 	if si.unpackInfo.digest != nil {
 		return fr, si.unpackInfo.digest[folder], nil
 	}
+
 	return fr, 0, nil
 }
 
@@ -363,6 +370,7 @@ func (h *FileHeader) Mode() (mode os.FileMode) {
 	} else {
 		mode = msdosModeToFileMode(h.Attributes)
 	}
+
 	return
 }
 
@@ -375,6 +383,7 @@ func msdosModeToFileMode(m uint32) (mode os.FileMode) {
 	if m&msdosReadOnly != 0 {
 		mode &^= 0222
 	}
+
 	return mode
 }
 
@@ -405,5 +414,6 @@ func unixModeToFileMode(m uint32) os.FileMode {
 	if m&sISVTX != 0 {
 		mode |= os.ModeSticky
 	}
+
 	return mode
 }

@@ -20,6 +20,7 @@ func (rc *readCloser) Close() (err error) {
 		err = rc.rc.Close()
 		rc.rc = nil
 	}
+
 	return
 }
 

@@ -27,6 +27,7 @@ func (rc *readCloser) Close() error {
 		err = rc.c.Close()
 		rc.c, rc.fr = nil, nil
 	}
+
 	return err
 }
 
@@ -36,6 +37,7 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 	if rc.fr == nil {
 		return 0, errors.New("deflate: Read after Close")
 	}
+
 	return rc.fr.Read(p)
 }
 

@@ -41,6 +41,7 @@ func (rc *byteReadCloser) ReadByte() (byte, error) {
 	if n == 0 {
 		return 0, io.ErrNoProgress
 	}
+
 	return b[0], nil
 }
 
@@ -50,5 +51,6 @@ func ByteReadCloser(r io.ReadCloser) ReadCloser {
 	if rc, ok := r.(ReadCloser); ok {
 		return rc
 	}
+
 	return &byteReadCloser{r}
 }

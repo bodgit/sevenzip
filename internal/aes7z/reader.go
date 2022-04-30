@@ -24,6 +24,7 @@ func (rc *readCloser) Close() error {
 		err = rc.rc.Close()
 		rc.rc, rc.br = nil, nil
 	}
+
 	return err
 }
 
@@ -33,6 +34,7 @@ func (rc *readCloser) Password(p string) error {
 		return err
 	}
 	rc.br = cipherio.NewBlockReader(rc.rc, cipher.NewCBCDecrypter(block, rc.iv))
+
 	return nil
 }
 
@@ -43,6 +45,7 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 	if rc.br == nil {
 		return 0, errors.New("aes7z: no password set")
 	}
+
 	return rc.br.Read(p)
 }
 
