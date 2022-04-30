@@ -74,6 +74,7 @@ func NewReader(_ []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, erro
 	if _, err := io.ReadFull(rc.rd, b); err != nil {
 		return nil, err
 	}
+
 	for _, x := range b {
 		rc.code = (rc.code << 8) | uint(x)
 	}
@@ -112,6 +113,7 @@ func (rc *readCloser) update() error {
 		if err != nil {
 			return err
 		}
+
 		rc.code = (rc.code << 8) | uint(b)
 		rc.nrange <<= 8
 	}
@@ -125,6 +127,7 @@ func (rc *readCloser) decode(i int) (bool, error) {
 	if rc.code < newBound {
 		rc.nrange = newBound
 		rc.sd[i] += (bitModelTotal - rc.sd[i]) >> numMoveBits
+
 		if err := rc.update(); err != nil {
 			return false, err
 		}
@@ -135,6 +138,7 @@ func (rc *readCloser) decode(i int) (bool, error) {
 	rc.nrange -= newBound
 	rc.code -= newBound
 	rc.sd[i] -= rc.sd[i] >> numMoveBits
+
 	if err := rc.update(); err != nil {
 		return false, err
 	}
@@ -143,8 +147,10 @@ func (rc *readCloser) decode(i int) (bool, error) {
 }
 
 func (rc *readCloser) read() error {
-	var b byte
-	var err error
+	var (
+		b   byte
+		err error
+	)
 
 	for {
 		if b, err = rc.main.ReadByte(); err != nil {
@@ -157,6 +163,7 @@ func (rc *readCloser) read() error {
 		if isJ(rc.previous, b) {
 			break
 		}
+
 		rc.previous = b
 
 		if rc.buf.Len() == rc.buf.Cap() {

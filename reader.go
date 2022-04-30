@@ -97,23 +97,27 @@ func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
 	}
 
 	var reader io.ReaderAt = f
+
 	size := info.Size()
 	files := []*os.File{f}
 
 	if ext := filepath.Ext(name); ext == ".001" {
 		sr := []readerutil.SizeReaderAt{io.NewSectionReader(f, 0, size)}
+
 		for i := 2; true; i++ {
 			f, err := os.Open(fmt.Sprintf("%s.%03d", strings.TrimSuffix(name, ext), i))
 			if err != nil {
 				if os.IsNotExist(err) {
 					break
 				}
+
 				for _, file := range files {
 					err = multierror.Append(err, file.Close())
 				}
 
 				return nil, err
 			}
+
 			files = append(files, f)
 
 			info, err = f.Stat()
@@ -127,12 +131,14 @@ func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
 
 			sr = append(sr, io.NewSectionReader(f, 0, info.Size()))
 		}
+
 		mr := readerutil.NewMultiReaderAt(sr...)
 		reader, size = mr, mr.Size()
 	}
 
 	r := new(ReadCloser)
 	r.p = password
+
 	if err := r.init(reader, size); err != nil {
 		for _, file := range files {
 			err = multierror.Append(err, file.Close())
@@ -140,6 +146,7 @@ func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
 
 		return nil, err
 	}
+
 	r.f = files
 
 	return r, nil
@@ -162,6 +169,7 @@ func NewReaderWithPassword(r io.ReaderAt, size int64, password string) (*Reader,
 
 	zr := new(Reader)
 	zr.p = password
+
 	if err := zr.init(r, size); err != nil {
 		return nil, err
 	}
@@ -184,6 +192,7 @@ func readUint64(r io.ByteReader) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
+
 	l := bits.LeadingZeros8(^b)
 
 	var v uint64
@@ -196,6 +205,7 @@ func readUint64(r io.ByteReader) (uint64, error) {
 		if err != nil {
 			return 0, err
 		}
+
 		v |= uint64(b) << (8 * i)
 	}
 
@@ -209,12 +219,15 @@ func readBool(r io.ByteReader, count uint64) ([]bool, error) {
 	for i := range defined {
 		if mask == 0 {
 			var err error
+
 			b, err = r.ReadByte()
 			if err != nil {
 				return nil, err
 			}
+
 			mask = 0x80
 		}
+
 		defined[i] = (b & mask) != 0
 		mask >>= 1
 	}
@@ -242,11 +255,13 @@ func readOptionalBool(r io.ByteReader, count uint64) ([]bool, error) {
 
 func readSizes(r io.ByteReader, count uint64) ([]uint64, error) {
 	sizes := make([]uint64, count)
+
 	for i := uint64(0); i < count; i++ {
 		size, err := readUint64(r)
 		if err != nil {
 			return nil, err
 		}
+
 		sizes[i] = size
 	}
 
@@ -260,11 +275,13 @@ func readCRC(r util.Reader, count uint64) ([]uint32, []bool, error) {
 	}
 
 	crcs := make([]uint32, count)
+
 	for i := uint64(0); i < count; i++ {
 		var crc uint32
 		if err := binary.Read(r, binary.LittleEndian, &crc); err != nil {
 			return nil, nil, err
 		}
+
 		crcs[i] = crc
 	}
 
@@ -275,6 +292,7 @@ func readPackInfo(r util.Reader) (*packInfo, error) {
 	p := new(packInfo)
 
 	var err error
+
 	p.position, err = readUint64(r)
 	if err != nil {
 		return nil, err
@@ -378,10 +396,12 @@ func readFolder(r util.Reader) (*folder, error) {
 	}
 
 	f.coder = make([]*coder, coders)
+
 	for i := uint64(0); i < coders; i++ {
 		if f.coder[i], err = readCoder(r); err != nil {
 			return nil, err
 		}
+
 		f.in += f.coder[i].in
 		f.out += f.coder[i].out
 	}
@@ -389,6 +409,7 @@ func readFolder(r util.Reader) (*folder, error) {
 	bindPairs := f.out - 1
 
 	f.bindPair = make([]*bindPair, bindPairs)
+
 	for i := uint64(0); i < bindPairs; i++ {
 		in, err := readUint64(r)
 		if err != nil {
@@ -461,6 +482,7 @@ func readUnpackInfo(r util.Reader) (*unpackInfo, error) {
 	}
 
 	u.folder = make([]*folder, folders)
+
 	for i := uint64(0); i < folders; i++ {
 		if u.folder[i], err = readFolder(r); err != nil {
 			return nil, err
@@ -480,6 +502,7 @@ func readUnpackInfo(r util.Reader) (*unpackInfo, error) {
 		for _, c := range f.coder {
 			total += c.out
 		}
+
 		f.size = make([]uint64, total)
 		for i := range f.size {
 			if f.size[i], err = readUint64(r); err != nil {
@@ -546,15 +569,19 @@ func readSubStreamsInfo(r util.Reader, folder []*folder) (*subStreamsInfo, error
 	if id == idSize {
 		s.size = make([]uint64, files)
 		k := 0
+
 		for i := range s.streams {
 			total := uint64(0)
+
 			for j := uint64(1); j < s.streams[i]; j++ {
 				if s.size[k], err = readUint64(r); err != nil {
 					return nil, err
 				}
+
 				total += s.size[k]
 				k++
 			}
+
 			s.size[k] = folder[i].unpackSize() - total
 			k++
 		}
@@ -655,11 +682,13 @@ func readTimes(r util.Reader, count uint64) ([]time.Time, error) {
 	}
 
 	times := make([]time.Time, 0, count)
+
 	for i := uint64(0); i < count; i++ {
 		var ft windows.Filetime
 		if err := binary.Read(r, binary.LittleEndian, &ft); err != nil {
 			return nil, err
 		}
+
 		times = append(times, time.Unix(0, ft.Nanoseconds()).UTC())
 	}
 
@@ -709,9 +738,11 @@ func readNames(r util.Reader, count, length uint64) ([]string, error) {
 		names = append(names, scanner.Text())
 		i++
 	}
+
 	if err = scanner.Err(); err != nil {
 		return nil, err
 	}
+
 	if i != count {
 		return nil, errors.New("sevenzip: wrong number of filenames")
 	}
@@ -759,9 +790,11 @@ func readFilesInfo(r util.Reader) (*filesInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	f.file = make([]FileHeader, files)
 
 	var emptyStreams uint64
+
 	for {
 		property, err := r.ReadByte()
 		if err != nil {
@@ -786,6 +819,7 @@ func readFilesInfo(r util.Reader) (*filesInfo, error) {
 
 			for i := range f.file {
 				f.file[i].isEmptyStream = empty[i]
+
 				if empty[i] {
 					emptyStreams++
 				}
@@ -797,6 +831,7 @@ func readFilesInfo(r util.Reader) (*filesInfo, error) {
 			}
 
 			j := 0
+
 			for i := range f.file {
 				if f.file[i].isEmptyStream {
 					f.file[i].isEmptyFile = empty[j]
@@ -917,10 +952,12 @@ func readHeader(r util.Reader) (*header, error) {
 	}
 
 	j := 0
+
 	for i := range h.filesInfo.file {
 		if h.filesInfo.file[i].isEmptyStream {
 			continue
 		}
+
 		h.filesInfo.file[i].CRC32 = h.streamsInfo.subStreamsInfo.digest[j]
 		_, h.filesInfo.file[i].UncompressedSize = h.streamsInfo.FileFolderAndSize(j)
 		j++
@@ -952,8 +989,11 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 
 	h.Reset()
 
-	var err error
-	var start startHeader
+	var (
+		err   error
+		start startHeader
+	)
+
 	if err = binary.Read(sr, binary.LittleEndian, &start); err != nil {
 		return err
 	}
@@ -983,8 +1023,10 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 		return err
 	}
 
-	var header *header
-	var streamsInfo *streamsInfo
+	var (
+		header      *header
+		streamsInfo *streamsInfo
+	)
 
 	switch id {
 	case idHeader:
@@ -1051,6 +1093,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	folder, offset := 0, int64(0)
 	z.File = make([]*File, 0, len(header.filesInfo.file))
 	j := 0
+
 	for _, fh := range header.filesInfo.file {
 		f := new(File)
 		f.zip = z
@@ -1066,8 +1109,8 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 			if f.folder != folder {
 				offset = 0
 			}
-			f.offset = offset
 
+			f.offset = offset
 			offset += int64(f.UncompressedSize)
 			folder = f.folder
 			j++

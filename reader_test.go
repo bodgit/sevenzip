@@ -88,27 +88,34 @@ func ExampleOpenReader() {
 
 func benchmarkArchive(file string, b *testing.B) {
 	h := crc32.NewIEEE()
+
 	for n := 0; n < b.N; n++ {
 		r, err := OpenReader(filepath.Join("testdata", file))
 		if err != nil {
 			b.Fatal(err)
 		}
 		defer r.Close()
+
 		for _, f := range r.File {
 			rc, err := f.Open()
 			if err != nil {
 				b.Fatal(err)
 			}
 			defer rc.Close()
+
 			h.Reset()
+
 			if _, err := io.Copy(h, rc); err != nil {
 				b.Fatal(err)
 			}
+
 			rc.Close()
+
 			if crc32Compare(h.Sum(nil), f.CRC32) != 0 {
 				b.Fatal(errors.New("CRC doesn't match"))
 			}
 		}
+
 		r.Close()
 	}
 }

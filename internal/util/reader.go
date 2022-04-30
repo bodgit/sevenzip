@@ -34,10 +34,12 @@ type byteReadCloser struct {
 
 func (rc *byteReadCloser) ReadByte() (byte, error) {
 	var b [1]byte
+
 	n, err := rc.Read(b[:])
 	if err != nil {
 		return 0, err
 	}
+
 	if n == 0 {
 		return 0, io.ErrNoProgress
 	}

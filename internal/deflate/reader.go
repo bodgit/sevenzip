@@ -18,11 +18,14 @@ type readCloser struct {
 func (rc *readCloser) Close() error {
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
+
 	var err error
+
 	if rc.c != nil {
 		if err = rc.fr.Close(); err != nil {
 			return err
 		}
+
 		flateReaderPool.Put(rc.fr)
 		err = rc.c.Close()
 		rc.c, rc.fr = nil, nil
@@ -34,6 +37,7 @@ func (rc *readCloser) Close() error {
 func (rc *readCloser) Read(p []byte) (int, error) {
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
+
 	if rc.fr == nil {
 		return 0, errors.New("deflate: Read after Close")
 	}

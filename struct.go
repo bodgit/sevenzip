@@ -115,6 +115,7 @@ func (f *folder) coderReader(readers []io.ReadCloser, coder uint64, password str
 	if dcomp == nil {
 		return nil, errAlgorithm
 	}
+
 	cr, err := dcomp(f.coder[coder].properties, f.size[coder], readers)
 	if err != nil {
 		return nil, err
@@ -158,6 +159,7 @@ func (f *folder) unpackSize() uint64 {
 	if len(f.size) == 0 {
 		return 0
 	}
+
 	for i := len(f.size) - 1; i >= 0; i-- {
 		if f.findOutBindPair(uint64(i)) == nil {
 			return f.size[i]
@@ -192,8 +194,12 @@ func (si *streamsInfo) Folders() int {
 
 func (si *streamsInfo) FileFolderAndSize(file int) (int, uint64) {
 	total := uint64(0)
-	var folder int
-	var streams uint64
+
+	var (
+		folder  int
+		streams uint64
+	)
+
 	for folder, streams = range si.subStreamsInfo.streams {
 		total += streams
 		if uint64(file) < total {
@@ -210,10 +216,12 @@ func (si *streamsInfo) FileFolderAndSize(file int) (int, uint64) {
 
 func (si *streamsInfo) folderOffset(folder int) int64 {
 	offset := uint64(0)
+
 	for i, k := 0, uint64(0); i < folder; i++ {
 		for j := k; j < k+si.unpackInfo.folder[i].packedStreams; j++ {
 			offset += si.packInfo.size[j]
 		}
+
 		k += si.unpackInfo.folder[i].packedStreams
 	}
 
@@ -231,6 +239,7 @@ func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) 
 	}
 
 	offset := int64(0)
+
 	for i, input := range f.packed {
 		size := int64(si.packInfo.size[packedOffset+i])
 		in[input] = util.NopCloser(bufio.NewReader(io.NewSectionReader(r, si.folderOffset(folder)+offset, size)))
@@ -238,6 +247,7 @@ func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) 
 	}
 
 	input, output := uint64(0), uint64(0)
+
 	for i, c := range f.coder {
 		if c.out != 1 {
 			return nil, 0, errors.New("more than one output stream")
@@ -257,6 +267,7 @@ func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) 
 		}
 
 		var err error
+
 		out[output], err = f.coderReader(in[input:input+c.in], uint64(i), password)
 		if err != nil {
 			return nil, 0, err
@@ -267,6 +278,7 @@ func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) 
 	}
 
 	unbound := make([]uint64, 0, f.out)
+
 	for i := uint64(0); i < f.out; i++ {
 		if bp := f.findOutBindPair(i); bp == nil {
 			unbound = append(unbound, i)
@@ -378,6 +390,7 @@ func msdosModeToFileMode(m uint32) (mode os.FileMode) {
 	} else {
 		mode = 0o666
 	}
+
 	if m&msdosReadOnly != 0 {
 		mode &^= 0o222
 	}
@@ -387,6 +400,7 @@ func msdosModeToFileMode(m uint32) (mode os.FileMode) {
 
 func unixModeToFileMode(m uint32) os.FileMode {
 	mode := os.FileMode(m & 0o777)
+
 	switch m & sIFMT {
 	case sIFBLK:
 		mode |= os.ModeDevice
@@ -403,12 +417,15 @@ func unixModeToFileMode(m uint32) os.FileMode {
 	case sIFSOCK:
 		mode |= os.ModeSocket
 	}
+
 	if m&sISGID != 0 {
 		mode |= os.ModeSetgid
 	}
+
 	if m&sISUID != 0 {
 		mode |= os.ModeSetuid
 	}
+
 	if m&sISVTX != 0 {
 		mode |= os.ModeSticky
 	}

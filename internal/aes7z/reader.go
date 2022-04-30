@@ -33,6 +33,7 @@ func (rc *readCloser) Password(p string) error {
 	if err != nil {
 		return err
 	}
+
 	rc.br = cipherio.NewBlockReader(rc.rc, cipher.NewCBCDecrypter(block, rc.iv))
 
 	return nil
@@ -42,6 +43,7 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 	if rc.rc == nil {
 		return 0, errors.New("aes7z: Read after Close")
 	}
+
 	if rc.br == nil {
 		return 0, errors.New("aes7z: no password set")
 	}
@@ -70,6 +72,7 @@ func NewReader(p []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, erro
 
 	salt := p[0]>>7&1 + p[1]>>4
 	iv := p[0]>>6&1 + p[1]&0x0f
+
 	if len(p) != int(2+salt+iv) {
 		return nil, errProperties
 	}
