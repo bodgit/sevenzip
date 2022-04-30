@@ -339,17 +339,17 @@ func (fi headerFileInfo) Sys() interface{} {
 const (
 	// Unix constants. The specification doesn't mention them,
 	// but these seem to be the values agreed on by tools.
-	s_IFMT   = 0xf000
-	s_IFSOCK = 0xc000
-	s_IFLNK  = 0xa000
-	s_IFREG  = 0x8000
-	s_IFBLK  = 0x6000
-	s_IFDIR  = 0x4000
-	s_IFCHR  = 0x2000
-	s_IFIFO  = 0x1000
-	s_ISUID  = 0x800
-	s_ISGID  = 0x400
-	s_ISVTX  = 0x200
+	sIFMT   = 0xf000
+	sIFSOCK = 0xc000
+	sIFLNK  = 0xa000
+	sIFREG  = 0x8000
+	sIFBLK  = 0x6000
+	sIFDIR  = 0x4000
+	sIFCHR  = 0x2000
+	sIFIFO  = 0x1000
+	sISUID  = 0x800
+	sISGID  = 0x400
+	sISVTX  = 0x200
 
 	msdosDir      = 0x10
 	msdosReadOnly = 0x01
@@ -380,29 +380,29 @@ func msdosModeToFileMode(m uint32) (mode os.FileMode) {
 
 func unixModeToFileMode(m uint32) os.FileMode {
 	mode := os.FileMode(m & 0777)
-	switch m & s_IFMT {
-	case s_IFBLK:
+	switch m & sIFMT {
+	case sIFBLK:
 		mode |= os.ModeDevice
-	case s_IFCHR:
+	case sIFCHR:
 		mode |= os.ModeDevice | os.ModeCharDevice
-	case s_IFDIR:
+	case sIFDIR:
 		mode |= os.ModeDir
-	case s_IFIFO:
+	case sIFIFO:
 		mode |= os.ModeNamedPipe
-	case s_IFLNK:
+	case sIFLNK:
 		mode |= os.ModeSymlink
-	case s_IFREG:
+	case sIFREG:
 		// nothing to do
-	case s_IFSOCK:
+	case sIFSOCK:
 		mode |= os.ModeSocket
 	}
-	if m&s_ISGID != 0 {
+	if m&sISGID != 0 {
 		mode |= os.ModeSetgid
 	}
-	if m&s_ISUID != 0 {
+	if m&sISUID != 0 {
 		mode |= os.ModeSetuid
 	}
-	if m&s_ISVTX != 0 {
+	if m&sISVTX != 0 {
 		mode |= os.ModeSticky
 	}
 	return mode
