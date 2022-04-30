@@ -10,25 +10,34 @@ import (
 )
 
 func TestOpenReader(t *testing.T) {
-	tables := map[string]struct {
-		file string
+	t.Parallel()
+
+	tables := []struct {
+		name, file string
 	}{
-		"no header compression": {
+		{
+			name: "no header compression",
 			file: "t0.7z",
 		},
-		"with header compression": {
+		{
+			name: "with header compression",
 			file: "t1.7z",
 		},
-		"multiple volume": {
+		{
+			name: "multiple volume",
 			file: "multi.7z.001",
 		},
-		"empty streams and files": {
+		{
+			name: "empty streams and files",
 			file: "empty.7z",
 		},
 	}
 
-	for name, table := range tables {
-		t.Run(name, func(t *testing.T) {
+	for _, table := range tables {
+		table := table
+
+		t.Run(table.name, func(t *testing.T) {
+			t.Parallel()
 			r, err := OpenReader(filepath.Join("testdata", table.file))
 			if err != nil {
 				t.Fatal(err)
@@ -39,22 +48,28 @@ func TestOpenReader(t *testing.T) {
 }
 
 func TestOpenReaderWithPassword(t *testing.T) {
-	tables := map[string]struct {
-		file     string
-		password string
+	t.Parallel()
+
+	tables := []struct {
+		name, file, password string
 	}{
-		"no header compression": {
+		{
+			name:     "no header compression",
 			file:     "t2.7z",
 			password: "password",
 		},
-		"with header compression": {
+		{
+			name:     "with header compression",
 			file:     "t3.7z",
 			password: "password",
 		},
 	}
 
-	for name, table := range tables {
-		t.Run(name, func(t *testing.T) {
+	for _, table := range tables {
+		table := table
+
+		t.Run(table.name, func(t *testing.T) {
+			t.Parallel()
 			r, err := OpenReaderWithPassword(filepath.Join("testdata", table.file), table.password)
 			if err != nil {
 				t.Fatal(err)
