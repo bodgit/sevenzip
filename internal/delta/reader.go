@@ -20,6 +20,7 @@ func (rc *readCloser) Close() (err error) {
 		err = rc.rc.Close()
 		rc.rc = nil
 	}
+
 	return
 }
 
@@ -33,10 +34,13 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 		return n, err
 	}
 
-	var buffer [stateSize]byte
+	var (
+		buffer [stateSize]byte
+		j      int
+	)
+
 	copy(buffer[:], rc.state[:rc.delta])
 
-	var j int
 	for i := 0; i < n; {
 		for j = 0; j < rc.delta && i < n; i++ {
 			p[i] = buffer[j] + p[i]

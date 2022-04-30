@@ -31,21 +31,19 @@ const (
 	idNumUnpackStream
 	idEmptyStream
 	idEmptyFile
-	idAnti
+	idAnti //nolint:deadcode,varcheck
 	idName
 	idCTime
 	idATime
 	idMTime
 	idWinAttributes
-	idComment
+	idComment //nolint:deadcode,varcheck
 	idEncodedHeader
 	idStartPos
 	idDummy
 )
 
-var (
-	signature = []byte{'7', 'z', 0xbc, 0xaf, 0x27, 0x1c}
-)
+var signature = []byte{'7', 'z', 0xbc, 0xaf, 0x27, 0x1c}
 
 type cryptoReadCloser interface {
 	io.ReadCloser
@@ -98,6 +96,7 @@ func (f *folder) findInBindPair(i uint64) *bindPair {
 			return v
 		}
 	}
+
 	return nil
 }
 
@@ -107,6 +106,7 @@ func (f *folder) findOutBindPair(i uint64) *bindPair {
 			return v
 		}
 	}
+
 	return nil
 }
 
@@ -115,6 +115,7 @@ func (f *folder) coderReader(readers []io.ReadCloser, coder uint64, password str
 	if dcomp == nil {
 		return nil, errAlgorithm
 	}
+
 	cr, err := dcomp(f.coder[coder].properties, f.size[coder], readers)
 	if err != nil {
 		return nil, err
@@ -150,6 +151,7 @@ func newFolderReadCloser(rc io.ReadCloser) io.ReadCloser {
 	nrc := new(folderReadCloser)
 	nrc.h = crc32.NewIEEE()
 	nrc.rc = plumbing.TeeReadCloser(rc, nrc.h)
+
 	return nrc
 }
 
@@ -157,11 +159,13 @@ func (f *folder) unpackSize() uint64 {
 	if len(f.size) == 0 {
 		return 0
 	}
+
 	for i := len(f.size) - 1; i >= 0; i-- {
 		if f.findOutBindPair(uint64(i)) == nil {
 			return f.size[i]
 		}
 	}
+
 	return f.size[len(f.size)-1]
 }
 
@@ -190,8 +194,12 @@ func (si *streamsInfo) Folders() int {
 
 func (si *streamsInfo) FileFolderAndSize(file int) (int, uint64) {
 	total := uint64(0)
-	var folder int
-	var streams uint64
+
+	var (
+		folder  int
+		streams uint64
+	)
+
 	for folder, streams = range si.subStreamsInfo.streams {
 		total += streams
 		if uint64(file) < total {
@@ -202,17 +210,21 @@ func (si *streamsInfo) FileFolderAndSize(file int) (int, uint64) {
 	if streams == 1 {
 		return folder, si.unpackInfo.folder[folder].size[len(si.unpackInfo.folder[folder].coder)-1]
 	}
+
 	return folder, si.subStreamsInfo.size[file]
 }
 
 func (si *streamsInfo) folderOffset(folder int) int64 {
 	offset := uint64(0)
+
 	for i, k := 0, uint64(0); i < folder; i++ {
 		for j := k; j < k+si.unpackInfo.folder[i].packedStreams; j++ {
 			offset += si.packInfo.size[j]
 		}
+
 		k += si.unpackInfo.folder[i].packedStreams
 	}
+
 	return int64(si.packInfo.position + offset)
 }
 
@@ -227,6 +239,7 @@ func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) 
 	}
 
 	offset := int64(0)
+
 	for i, input := range f.packed {
 		size := int64(si.packInfo.size[packedOffset+i])
 		in[input] = util.NopCloser(bufio.NewReader(io.NewSectionReader(r, si.folderOffset(folder)+offset, size)))
@@ -234,6 +247,7 @@ func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) 
 	}
 
 	input, output := uint64(0), uint64(0)
+
 	for i, c := range f.coder {
 		if c.out != 1 {
 			return nil, 0, errors.New("more than one output stream")
@@ -253,6 +267,7 @@ func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) 
 		}
 
 		var err error
+
 		out[output], err = f.coderReader(in[input:input+c.in], uint64(i), password)
 		if err != nil {
 			return nil, 0, err
@@ -263,6 +278,7 @@ func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) 
 	}
 
 	unbound := make([]uint64, 0, f.out)
+
 	for i := uint64(0); i < f.out; i++ {
 		if bp := f.findOutBindPair(i); bp == nil {
 			unbound = append(unbound, i)
@@ -278,6 +294,7 @@ func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) 
 	if si.unpackInfo.digest != nil {
 		return fr, si.unpackInfo.digest[folder], nil
 	}
+
 	return fr, 0, nil
 }
 
@@ -339,17 +356,17 @@ func (fi headerFileInfo) Sys() interface{} {
 const (
 	// Unix constants. The specification doesn't mention them,
 	// but these seem to be the values agreed on by tools.
-	s_IFMT   = 0xf000
-	s_IFSOCK = 0xc000
-	s_IFLNK  = 0xa000
-	s_IFREG  = 0x8000
-	s_IFBLK  = 0x6000
-	s_IFDIR  = 0x4000
-	s_IFCHR  = 0x2000
-	s_IFIFO  = 0x1000
-	s_ISUID  = 0x800
-	s_ISGID  = 0x400
-	s_ISVTX  = 0x200
+	sIFMT   = 0xf000
+	sIFSOCK = 0xc000
+	sIFLNK  = 0xa000
+	sIFREG  = 0x8000
+	sIFBLK  = 0x6000
+	sIFDIR  = 0x4000
+	sIFCHR  = 0x2000
+	sIFIFO  = 0x1000
+	sISUID  = 0x800
+	sISGID  = 0x400
+	sISVTX  = 0x200
 
 	msdosDir      = 0x10
 	msdosReadOnly = 0x01
@@ -363,47 +380,55 @@ func (h *FileHeader) Mode() (mode os.FileMode) {
 	} else {
 		mode = msdosModeToFileMode(h.Attributes)
 	}
+
 	return
 }
 
 func msdosModeToFileMode(m uint32) (mode os.FileMode) {
 	if m&msdosDir != 0 {
-		mode = os.ModeDir | 0777
+		mode = os.ModeDir | 0o777
 	} else {
-		mode = 0666
+		mode = 0o666
 	}
+
 	if m&msdosReadOnly != 0 {
-		mode &^= 0222
+		mode &^= 0o222
 	}
+
 	return mode
 }
 
 func unixModeToFileMode(m uint32) os.FileMode {
-	mode := os.FileMode(m & 0777)
-	switch m & s_IFMT {
-	case s_IFBLK:
+	mode := os.FileMode(m & 0o777)
+
+	switch m & sIFMT {
+	case sIFBLK:
 		mode |= os.ModeDevice
-	case s_IFCHR:
+	case sIFCHR:
 		mode |= os.ModeDevice | os.ModeCharDevice
-	case s_IFDIR:
+	case sIFDIR:
 		mode |= os.ModeDir
-	case s_IFIFO:
+	case sIFIFO:
 		mode |= os.ModeNamedPipe
-	case s_IFLNK:
+	case sIFLNK:
 		mode |= os.ModeSymlink
-	case s_IFREG:
+	case sIFREG:
 		// nothing to do
-	case s_IFSOCK:
+	case sIFSOCK:
 		mode |= os.ModeSocket
 	}
-	if m&s_ISGID != 0 {
+
+	if m&sISGID != 0 {
 		mode |= os.ModeSetgid
 	}
-	if m&s_ISUID != 0 {
+
+	if m&sISUID != 0 {
 		mode |= os.ModeSetuid
 	}
-	if m&s_ISVTX != 0 {
+
+	if m&sISVTX != 0 {
 		mode |= os.ModeSticky
 	}
+
 	return mode
 }

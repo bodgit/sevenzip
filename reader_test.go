@@ -1,4 +1,4 @@
-package sevenzip
+package sevenzip_test
 
 import (
 	"errors"
@@ -7,29 +7,41 @@ import (
 	"io"
 	"path/filepath"
 	"testing"
+
+	"github.com/bodgit/sevenzip"
+	"github.com/bodgit/sevenzip/internal/util"
 )
 
 func TestOpenReader(t *testing.T) {
-	tables := map[string]struct {
-		file string
+	t.Parallel()
+
+	tables := []struct {
+		name, file string
 	}{
-		"no header compression": {
+		{
+			name: "no header compression",
 			file: "t0.7z",
 		},
-		"with header compression": {
+		{
+			name: "with header compression",
 			file: "t1.7z",
 		},
-		"multiple volume": {
+		{
+			name: "multiple volume",
 			file: "multi.7z.001",
 		},
-		"empty streams and files": {
+		{
+			name: "empty streams and files",
 			file: "empty.7z",
 		},
 	}
 
-	for name, table := range tables {
-		t.Run(name, func(t *testing.T) {
-			r, err := OpenReader(filepath.Join("testdata", table.file))
+	for _, table := range tables {
+		table := table
+
+		t.Run(table.name, func(t *testing.T) {
+			t.Parallel()
+			r, err := sevenzip.OpenReader(filepath.Join("testdata", table.file))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -39,23 +51,29 @@ func TestOpenReader(t *testing.T) {
 }
 
 func TestOpenReaderWithPassword(t *testing.T) {
-	tables := map[string]struct {
-		file     string
-		password string
+	t.Parallel()
+
+	tables := []struct {
+		name, file, password string
 	}{
-		"no header compression": {
+		{
+			name:     "no header compression",
 			file:     "t2.7z",
 			password: "password",
 		},
-		"with header compression": {
+		{
+			name:     "with header compression",
 			file:     "t3.7z",
 			password: "password",
 		},
 	}
 
-	for name, table := range tables {
-		t.Run(name, func(t *testing.T) {
-			r, err := OpenReaderWithPassword(filepath.Join("testdata", table.file), table.password)
+	for _, table := range tables {
+		table := table
+
+		t.Run(table.name, func(t *testing.T) {
+			t.Parallel()
+			r, err := sevenzip.OpenReaderWithPassword(filepath.Join("testdata", table.file), table.password)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -65,7 +83,7 @@ func TestOpenReaderWithPassword(t *testing.T) {
 }
 
 func ExampleOpenReader() {
-	r, err := OpenReader(filepath.Join("testdata", "multi.7z.001"))
+	r, err := sevenzip.OpenReader(filepath.Join("testdata", "multi.7z.001"))
 	if err != nil {
 		panic(err)
 	}
@@ -86,57 +104,66 @@ func ExampleOpenReader() {
 	// 10
 }
 
-func benchmarkArchive(file string, b *testing.B) {
+func benchmarkArchive(b *testing.B, file string) {
+	b.Helper()
+
 	h := crc32.NewIEEE()
+
 	for n := 0; n < b.N; n++ {
-		r, err := OpenReader(filepath.Join("testdata", file))
+		r, err := sevenzip.OpenReader(filepath.Join("testdata", file))
 		if err != nil {
 			b.Fatal(err)
 		}
 		defer r.Close()
+
 		for _, f := range r.File {
 			rc, err := f.Open()
 			if err != nil {
 				b.Fatal(err)
 			}
 			defer rc.Close()
+
 			h.Reset()
+
 			if _, err := io.Copy(h, rc); err != nil {
 				b.Fatal(err)
 			}
+
 			rc.Close()
-			if crc32Compare(h.Sum(nil), f.CRC32) != 0 {
+
+			if !util.CRC32Equal(h.Sum(nil), f.CRC32) {
 				b.Fatal(errors.New("CRC doesn't match"))
 			}
 		}
+
 		r.Close()
 	}
 }
 
 func BenchmarkBzip2(b *testing.B) {
-	benchmarkArchive("bzip2.7z", b)
+	benchmarkArchive(b, "bzip2.7z")
 }
 
 func BenchmarkCopy(b *testing.B) {
-	benchmarkArchive("copy.7z", b)
+	benchmarkArchive(b, "copy.7z")
 }
 
 func BenchmarkDeflate(b *testing.B) {
-	benchmarkArchive("deflate.7z", b)
+	benchmarkArchive(b, "deflate.7z")
 }
 
 func BenchmarkDelta(b *testing.B) {
-	benchmarkArchive("delta.7z", b)
+	benchmarkArchive(b, "delta.7z")
 }
 
 func BenchmarkLZMA(b *testing.B) {
-	benchmarkArchive("lzma.7z", b)
+	benchmarkArchive(b, "lzma.7z")
 }
 
 func BenchmarkLZMA2(b *testing.B) {
-	benchmarkArchive("lzma2.7z", b)
+	benchmarkArchive(b, "lzma2.7z")
 }
 
 func BenchmarkBCJ2(b *testing.B) {
-	benchmarkArchive("bcj2.7z", b)
+	benchmarkArchive(b, "bcj2.7z")
 }

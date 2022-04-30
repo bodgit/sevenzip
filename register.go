@@ -16,21 +16,23 @@ import (
 
 // Decompressor describes the function signature that decompression/decryption
 // methods must implement to return a new instance of themselves. They are
-// passed any property bytes, the size of the stream and a varying number of,
-// but nearly always one, io.ReadCloser providing the stream of bytes. Blame
-// (currently unimplemented) BCJ2 for that one.
+// passed any property bytes, the size of the stream and a slice of at least
+// one io.ReadCloser's providing the stream(s) of bytes.
 type Decompressor func([]byte, uint64, []io.ReadCloser) (io.ReadCloser, error)
 
 var decompressors sync.Map
 
+func newCopyReader(_ []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
+	if len(readers) != 1 {
+		return nil, errors.New("sevenzip: need exactly one reader")
+	}
+	// just return the passed io.ReadCloser)
+	return readers[0], nil
+}
+
 func init() {
-	// Copy (just return the passed io.ReadCloser)
-	RegisterDecompressor([]byte{0x00}, Decompressor(func(_ []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
-		if len(readers) != 1 {
-			return nil, errors.New("sevenzip: need exactly one reader")
-		}
-		return readers[0], nil
-	}))
+	// Copy
+	RegisterDecompressor([]byte{0x00}, Decompressor(newCopyReader))
 	// Delta
 	RegisterDecompressor([]byte{0x03}, Decompressor(delta.NewReader))
 	// LZMA
@@ -59,5 +61,10 @@ func decompressor(method []byte) Decompressor {
 	if !ok {
 		return nil
 	}
-	return di.(Decompressor)
+
+	if d, ok := di.(Decompressor); ok {
+		return d
+	}
+
+	return nil
 }
