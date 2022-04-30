@@ -944,7 +944,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 		return err
 	}
 
-	if !bytes.Equal(sh.Signature[:], signature[:]) {
+	if !bytes.Equal(sh.Signature[:], signature) {
 		return errFormat
 	}
 
