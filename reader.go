@@ -999,7 +999,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	}
 
 	// CRC of the start header should match
-	if crc32Compare(h.Sum(nil), sh.CRC) != 0 {
+	if !util.CRC32Equal(h.Sum(nil), sh.CRC) {
 		return errChecksum
 	}
 
@@ -1048,7 +1048,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	}
 
 	// CRC should match the one from the start header
-	if crc32Compare(h.Sum(nil), start.CRC) != 0 {
+	if !util.CRC32Equal(h.Sum(nil), start.CRC) {
 		return errChecksum
 	}
 
@@ -1080,7 +1080,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 		}
 
 		if cr, ok := fr.(checksumReadCloser); ok && crc != 0 {
-			if crc32Compare(cr.Checksum(), crc) != 0 {
+			if !util.CRC32Equal(cr.Checksum(), crc) {
 				return errChecksum
 			}
 		}
