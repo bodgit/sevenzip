@@ -175,7 +175,7 @@ func crc32Compare(b []byte, c uint32) int {
 	return bytes.Compare(b, []byte{byte(0xff & (c >> 24)), byte(0xff & (c >> 16)), byte(0xff & (c >> 8)), byte(0xff & c)})
 }
 
-func readUint64(r util.Reader) (uint64, error) {
+func readUint64(r io.ByteReader) (uint64, error) {
 	b, err := r.ReadByte()
 	if err != nil {
 		return 0, err
@@ -198,7 +198,7 @@ func readUint64(r util.Reader) (uint64, error) {
 	return v, nil
 }
 
-func readBool(r util.Reader, count uint64) ([]bool, error) {
+func readBool(r io.ByteReader, count uint64) ([]bool, error) {
 	defined := make([]bool, count)
 
 	var b, mask byte
@@ -218,7 +218,7 @@ func readBool(r util.Reader, count uint64) ([]bool, error) {
 	return defined, nil
 }
 
-func readOptionalBool(r util.Reader, count uint64) ([]bool, error) {
+func readOptionalBool(r io.ByteReader, count uint64) ([]bool, error) {
 	all, err := r.ReadByte()
 	if err != nil {
 		return nil, err
@@ -236,7 +236,7 @@ func readOptionalBool(r util.Reader, count uint64) ([]bool, error) {
 	return defined, nil
 }
 
-func readSizes(r util.Reader, count uint64) ([]uint64, error) {
+func readSizes(r io.ByteReader, count uint64) ([]uint64, error) {
 	sizes := make([]uint64, count)
 	for i := uint64(0); i < count; i++ {
 		size, err := readUint64(r)
