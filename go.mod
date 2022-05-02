@@ -1,6 +1,6 @@
 module github.com/bodgit/sevenzip
 
-go 1.13
+go 1.17
 
 require (
 	github.com/bodgit/plumbing v1.1.1
@@ -11,3 +11,5 @@ require (
 	go4.org v0.0.0-20200411211856-f5505b9728dd
 	golang.org/x/text v0.3.7
 )
+
+require github.com/hashicorp/errwrap v1.0.0 // indirect
