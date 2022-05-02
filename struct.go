@@ -132,17 +132,58 @@ func (f *folder) coderReader(readers []io.ReadCloser, coder uint64, password str
 
 type folderReadCloser struct {
 	io.ReadCloser
-	h hash.Hash
+	h    hash.Hash
+	wc   *plumbing.WriteCounter
+	size int64
 }
 
 func (rc *folderReadCloser) Checksum() []byte {
 	return rc.h.Sum(nil)
 }
 
-func newFolderReadCloser(rc io.ReadCloser) *folderReadCloser {
+func (rc *folderReadCloser) Seek(offset int64, whence int) (int64, error) {
+	var newo int64
+
+	switch whence {
+	case io.SeekStart:
+		newo = offset
+	case io.SeekCurrent:
+		newo = int64(rc.wc.Count()) + offset
+	case io.SeekEnd:
+		newo = rc.size + offset
+	default:
+		return 0, errors.New("invalid whence")
+	}
+
+	if newo < 0 {
+		return 0, errors.New("negative seek")
+	}
+
+	if newo < int64(rc.wc.Count()) {
+		return 0, errors.New("cannot seek backwards")
+	}
+
+	if newo > rc.size {
+		return 0, errors.New("cannot seek beyond EOF")
+	}
+
+	if _, err := io.CopyN(io.Discard, rc, newo-int64(rc.wc.Count())); err != nil {
+		return 0, err
+	}
+
+	return newo, nil
+}
+
+func (rc *folderReadCloser) Size() int64 {
+	return rc.size
+}
+
+func newFolderReadCloser(rc io.ReadCloser, size int64) *folderReadCloser {
 	nrc := new(folderReadCloser)
 	nrc.h = crc32.NewIEEE()
-	nrc.ReadCloser = plumbing.TeeReadCloser(rc, nrc.h)
+	nrc.wc = new(plumbing.WriteCounter)
+	nrc.ReadCloser = plumbing.TeeReadCloser(rc, io.MultiWriter(nrc.h, nrc.wc))
+	nrc.size = size
 
 	return nrc
 }
@@ -281,7 +322,7 @@ func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) 
 		return nil, 0, errors.New("expecting one unbound output stream")
 	}
 
-	fr := newFolderReadCloser(out[unbound[0]])
+	fr := newFolderReadCloser(out[unbound[0]], int64(f.unpackSize()))
 
 	if si.unpackInfo.digest != nil {
 		return fr, si.unpackInfo.digest[folder], nil
