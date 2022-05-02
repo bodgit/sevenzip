@@ -55,7 +55,7 @@ jobs:
         with:
           go-version: '1.18'
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v2.6.1
+        uses: goreleaser/goreleaser-action@v2.9.1
         with:
           version: latest
           args: release --rm-dist
