@@ -33,6 +33,7 @@ var (
 	errIncompleteRead = errors.New("sevenzip: incomplete read")
 )
 
+// A Reader serves content from a 7-Zip archive.
 type Reader struct {
 	r     io.ReaderAt
 	start int64
@@ -42,11 +43,14 @@ type Reader struct {
 	File  []*File
 }
 
+// A ReadCloser is a Reader that must be closed when no longer needed.
 type ReadCloser struct {
 	f []*os.File
 	Reader
 }
 
+// A File is a single file in a 7-Zip archive. The file information is in the
+// embedded FileHeader. The file content can be accessed by calling Open.
 type File struct {
 	FileHeader
 	zip    *Reader
