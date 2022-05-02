@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
-	"io/ioutil"
 	"math/bits"
 	"os"
 	"path/filepath"
@@ -63,7 +62,7 @@ type File struct {
 func (f *File) Open() (io.ReadCloser, error) {
 	if f.FileHeader.isEmptyStream || f.FileHeader.isEmptyFile {
 		// Return empty reader for directory or empty file
-		return ioutil.NopCloser(bytes.NewReader(nil)), nil
+		return io.NopCloser(bytes.NewReader(nil)), nil
 	}
 
 	r, _, err := f.zip.folderReader(f.zip.si, f.folder)
@@ -71,7 +70,7 @@ func (f *File) Open() (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	if _, err := io.CopyN(ioutil.Discard, r, f.offset); err != nil {
+	if _, err := io.CopyN(io.Discard, r, f.offset); err != nil {
 		return nil, err
 	}
 
@@ -881,7 +880,7 @@ func readFilesInfo(r util.Reader) (*filesInfo, error) {
 		case idStartPos:
 			return nil, errors.New("sevenzip: TODO idStartPos")
 		case idDummy:
-			if _, err := io.CopyN(ioutil.Discard, r, int64(length)); err != nil {
+			if _, err := io.CopyN(io.Discard, r, int64(length)); err != nil {
 				return nil, err
 			}
 		default:
@@ -1038,7 +1037,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 
 	// If there's more data to read, we've not parsed this correctly. This
 	// won't break with trailing data as the bufio.Reader was bounded
-	if n, _ := io.CopyN(ioutil.Discard, br, 1); n != 0 {
+	if n, _ := io.CopyN(io.Discard, br, 1); n != 0 {
 		return errTooMuch
 	}
 
