@@ -58,6 +58,42 @@ type File struct {
 	offset int64
 }
 
+type fileReader struct {
+	rc util.SizeReadSeekCloser
+	f  *File
+}
+
+func (fr *fileReader) Read(p []byte) (int, error) {
+	return fr.rc.Read(p)
+}
+
+func (fr *fileReader) Close() error {
+	if fr.rc == nil {
+		return nil
+	}
+
+	offset, err := fr.rc.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return err
+	}
+
+	f := fr.f
+
+	if offset == fr.rc.Size() { // EOF reached
+		if err := fr.rc.Close(); err != nil {
+			return err
+		}
+	} else {
+		if _, err := f.zip.pool[f.folder].Put(offset, fr.rc); err != nil {
+			return err
+		}
+	}
+
+	fr.rc = nil
+
+	return nil
+}
+
 // Open returns an io.ReadCloser that provides access to the File's contents.
 // Multiple files may be read concurrently.
 func (f *File) Open() (io.ReadCloser, error) {
@@ -66,16 +102,26 @@ func (f *File) Open() (io.ReadCloser, error) {
 		return ioutil.NopCloser(bytes.NewReader(nil)), nil
 	}
 
-	r, _, err := f.zip.folderReader(f.zip.si, f.folder)
-	if err != nil {
+	var err error
+
+	rc, _ := f.zip.pool[f.folder].Get(f.offset)
+	if rc == nil {
+		rc, _, err = f.zip.folderReader(f.zip.si, f.folder)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if _, err = rc.Seek(f.offset, io.SeekStart); err != nil {
 		return nil, err
 	}
 
-	if _, err := io.CopyN(ioutil.Discard, r, f.offset); err != nil {
-		return nil, err
+	fr := &fileReader{
+		rc: rc,
+		f:  f,
 	}
 
-	return plumbing.LimitReadCloser(r, int64(f.UncompressedSize)), nil
+	return plumbing.LimitReadCloser(fr, int64(f.UncompressedSize)), nil
 }
 
 // OpenReaderWithPassword will open the 7-zip file specified by name using
