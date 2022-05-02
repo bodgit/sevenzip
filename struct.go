@@ -45,8 +45,8 @@ const (
 
 var signature = []byte{'7', 'z', 0xbc, 0xaf, 0x27, 0x1c}
 
-type cryptoReadCloser interface {
-	io.ReadCloser
+// CryptoReadCloser adds a Password method to decompressors.
+type CryptoReadCloser interface {
 	Password(string) error
 }
 
@@ -121,7 +121,7 @@ func (f *folder) coderReader(readers []io.ReadCloser, coder uint64, password str
 		return nil, err
 	}
 
-	if crc, ok := cr.(cryptoReadCloser); ok {
+	if crc, ok := cr.(CryptoReadCloser); ok {
 		if err = crc.Password(password); err != nil {
 			return nil, err
 		}

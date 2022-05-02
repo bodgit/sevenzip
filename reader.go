@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
-	"io/ioutil"
 	"math/bits"
 	"os"
 	"path/filepath"
@@ -36,6 +35,7 @@ var (
 
 var newPool pool.Constructor = pool.NewPool
 
+// A Reader serves content from a 7-Zip archive.
 type Reader struct {
 	r     io.ReaderAt
 	start int64
@@ -46,11 +46,14 @@ type Reader struct {
 	pool  []pool.Pooler
 }
 
+// A ReadCloser is a Reader that must be closed when no longer needed.
 type ReadCloser struct {
 	f []*os.File
 	Reader
 }
 
+// A File is a single file in a 7-Zip archive. The file information is in the
+// embedded FileHeader. The file content can be accessed by calling Open.
 type File struct {
 	FileHeader
 	zip    *Reader
@@ -99,7 +102,7 @@ func (fr *fileReader) Close() error {
 func (f *File) Open() (io.ReadCloser, error) {
 	if f.FileHeader.isEmptyStream || f.FileHeader.isEmptyFile {
 		// Return empty reader for directory or empty file
-		return ioutil.NopCloser(bytes.NewReader(nil)), nil
+		return io.NopCloser(bytes.NewReader(nil)), nil
 	}
 
 	var err error
@@ -927,7 +930,7 @@ func readFilesInfo(r util.Reader) (*filesInfo, error) {
 		case idStartPos:
 			return nil, errors.New("sevenzip: TODO idStartPos")
 		case idDummy:
-			if _, err := io.CopyN(ioutil.Discard, r, int64(length)); err != nil {
+			if _, err := io.CopyN(io.Discard, r, int64(length)); err != nil {
 				return nil, err
 			}
 		default:
@@ -1084,7 +1087,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 
 	// If there's more data to read, we've not parsed this correctly. This
 	// won't break with trailing data as the bufio.Reader was bounded
-	if n, _ := io.CopyN(ioutil.Discard, br, 1); n != 0 {
+	if n, _ := io.CopyN(io.Discard, br, 1); n != 0 {
 		return errTooMuch
 	}
 
