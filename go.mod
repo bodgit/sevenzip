@@ -3,7 +3,7 @@ module github.com/bodgit/sevenzip
 go 1.13
 
 require (
-	github.com/bodgit/plumbing v1.1.0
+	github.com/bodgit/plumbing v1.1.1
 	github.com/bodgit/windows v1.0.0
 	github.com/connesc/cipherio v0.2.1
 	github.com/hashicorp/go-multierror v1.1.1
