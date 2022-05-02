@@ -222,7 +222,11 @@ type streamsInfo struct {
 }
 
 func (si *streamsInfo) Folders() int {
-	return len(si.unpackInfo.folder)
+	if si != nil && si.unpackInfo != nil {
+		return len(si.unpackInfo.folder)
+	}
+
+	return 0
 }
 
 func (si *streamsInfo) FileFolderAndSize(file int) (int, uint64) {

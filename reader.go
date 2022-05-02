@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/bodgit/plumbing"
+	"github.com/bodgit/sevenzip/internal/pool"
 	"github.com/bodgit/sevenzip/internal/util"
 	"github.com/bodgit/windows"
 	"github.com/hashicorp/go-multierror"
@@ -33,6 +34,8 @@ var (
 	errIncompleteRead = errors.New("sevenzip: incomplete read")
 )
 
+var newPool pool.Constructor = pool.NewPool
+
 type Reader struct {
 	r     io.ReaderAt
 	start int64
@@ -40,6 +43,7 @@ type Reader struct {
 	si    *streamsInfo
 	p     string
 	File  []*File
+	pool  []pool.Pooler
 }
 
 type ReadCloser struct {
@@ -1076,6 +1080,13 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	}
 
 	z.si = header.streamsInfo
+
+	z.pool = make([]pool.Pooler, z.si.Folders())
+	for i := range z.pool {
+		if z.pool[i], err = newPool(); err != nil {
+			return err
+		}
+	}
 
 	// spew.Dump(header)
 
