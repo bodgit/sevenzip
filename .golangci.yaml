@@ -13,6 +13,5 @@ linters:
     - gomnd
     - godox
     - ireturn
-    - nestif
     - varnamelen
     - wrapcheck

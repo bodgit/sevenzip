@@ -80,13 +80,12 @@ func (fr *fileReader) Close() error {
 		return err
 	}
 
-	f := fr.f
-
 	if offset == fr.rc.Size() { // EOF reached
 		if err := fr.rc.Close(); err != nil {
 			return err
 		}
 	} else {
+		f := fr.f
 		if _, err := f.zip.pool[f.folder].Put(offset, fr.rc); err != nil {
 			return err
 		}
@@ -1010,6 +1009,23 @@ func readHeader(r util.Reader) (*header, error) {
 	return h, nil
 }
 
+func readEncodedHeader(r util.Reader) (*header, error) {
+	if id, err := r.ReadByte(); err != nil || id != idHeader {
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, errUnexpectedID
+	}
+
+	header, err := readHeader(r)
+	if err != nil {
+		return nil, err
+	}
+
+	return header, nil
+}
+
 func (z *Reader) folderReader(si *streamsInfo, f int) (*folderReadCloser, uint32, error) {
 	// Create a SectionReader covering all of the streams data
 	return si.FolderReader(io.NewSectionReader(z.r, z.start, z.end), f, z.p)
@@ -1098,7 +1114,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 
 	// If the header was encoded we should have sufficient information now
 	// to decode it
-	if id == idEncodedHeader && streamsInfo != nil {
+	if streamsInfo != nil {
 		if streamsInfo.Folders() != 1 {
 			return errors.New("sevenzip: expected only one folder in header stream")
 		}
@@ -1109,17 +1125,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 		}
 		defer fr.Close()
 
-		br = bufio.NewReader(fr)
-
-		if id, err = br.ReadByte(); err != nil || id != idHeader {
-			if err != nil {
-				return err
-			}
-
-			return errUnexpectedID
-		}
-
-		if header, err = readHeader(br); err != nil {
+		if header, err = readEncodedHeader(util.ByteReadCloser(fr)); err != nil {
 			return err
 		}
 
