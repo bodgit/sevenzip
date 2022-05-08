@@ -14,36 +14,7 @@ import (
 	"github.com/bodgit/sevenzip/internal/util"
 )
 
-const (
-	idEnd = iota
-	idHeader
-	idArchiveProperties
-	idAdditionalStreamsInfo
-	idMainStreamsInfo
-	idFilesInfo
-	idPackInfo
-	idUnpackInfo
-	idSubStreamsInfo
-	idSize
-	idCRC
-	idFolder
-	idCodersUnpackSize
-	idNumUnpackStream
-	idEmptyStream
-	idEmptyFile
-	idAnti //nolint:deadcode,varcheck
-	idName
-	idCTime
-	idATime
-	idMTime
-	idWinAttributes
-	idComment //nolint:deadcode,varcheck
-	idEncodedHeader
-	idStartPos
-	idDummy
-)
-
-var signature = []byte{'7', 'z', 0xbc, 0xaf, 0x27, 0x1c}
+var errAlgorithm = errors.New("sevenzip: unsupported compression algorithm")
 
 // CryptoReadCloser adds a Password method to decompressors.
 type CryptoReadCloser interface {
@@ -265,6 +236,7 @@ func (si *streamsInfo) folderOffset(folder int) int64 {
 	return int64(si.packInfo.position + offset)
 }
 
+//nolint:cyclop,funlen
 func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) (*folderReadCloser, uint32, error) {
 	f := si.unpackInfo.folder[folder]
 	in := make([]io.ReadCloser, f.in)
@@ -435,6 +407,7 @@ func msdosModeToFileMode(m uint32) (mode os.FileMode) {
 	return mode
 }
 
+//nolint:cyclop
 func unixModeToFileMode(m uint32) os.FileMode {
 	mode := os.FileMode(m & 0o777)
 

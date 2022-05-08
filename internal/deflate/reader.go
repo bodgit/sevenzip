@@ -7,6 +7,7 @@ import (
 	"sync"
 )
 
+//nolint:gochecknoglobals
 var flateReaderPool sync.Pool
 
 type readCloser struct {
