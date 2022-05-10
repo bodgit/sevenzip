@@ -12,6 +12,33 @@ import (
 	"github.com/bodgit/sevenzip/internal/util"
 )
 
+func readArchive(t *testing.T, r *sevenzip.ReadCloser) {
+	t.Helper()
+
+	h := crc32.NewIEEE()
+
+	for _, f := range r.File {
+		rc, err := f.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer rc.Close()
+
+		h.Reset()
+
+		if _, err := io.Copy(h, rc); err != nil {
+			t.Fatal(err)
+		}
+
+		rc.Close()
+
+		if !util.CRC32Equal(h.Sum(nil), f.CRC32) {
+			t.Fatal(errors.New("CRC doesn't match"))
+		}
+	}
+}
+
+//nolint:funlen
 func TestOpenReader(t *testing.T) {
 	t.Parallel()
 
@@ -34,6 +61,38 @@ func TestOpenReader(t *testing.T) {
 			name: "empty streams and files",
 			file: "empty.7z",
 		},
+		{
+			name: "bcj2",
+			file: "bcj2.7z",
+		},
+		{
+			name: "bzip2",
+			file: "bzip2.7z",
+		},
+		{
+			name: "copy",
+			file: "copy.7z",
+		},
+		{
+			name: "deflate",
+			file: "deflate.7z",
+		},
+		{
+			name: "delta",
+			file: "delta.7z",
+		},
+		{
+			name: "lzma",
+			file: "lzma.7z",
+		},
+		{
+			name: "lzma2",
+			file: "lzma2.7z",
+		},
+		{
+			name: "complex",
+			file: "lzma1900.7z",
+		},
 	}
 
 	for _, table := range tables {
@@ -46,6 +105,8 @@ func TestOpenReader(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer r.Close()
+
+			readArchive(t, r)
 		})
 	}
 }
@@ -78,6 +139,8 @@ func TestOpenReaderWithPassword(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer r.Close()
+
+			readArchive(t, r)
 		})
 	}
 }
@@ -166,4 +229,8 @@ func BenchmarkLZMA2(b *testing.B) {
 
 func BenchmarkBCJ2(b *testing.B) {
 	benchmarkArchive(b, "bcj2.7z")
+}
+
+func BenchmarkComplex(b *testing.B) {
+	benchmarkArchive(b, "lzma1900.7z")
 }

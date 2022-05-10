@@ -2,6 +2,15 @@ package util
 
 import "io"
 
+// SizeReadSeekCloser is an io.Reader, io.Seeker, and io.Closer with a Size
+// method.
+type SizeReadSeekCloser interface {
+	io.Reader
+	io.Seeker
+	io.Closer
+	Size() int64
+}
+
 // Reader is both an io.Reader and io.ByteReader.
 type Reader interface {
 	io.Reader

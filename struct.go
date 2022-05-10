@@ -14,36 +14,7 @@ import (
 	"github.com/bodgit/sevenzip/internal/util"
 )
 
-const (
-	idEnd = iota
-	idHeader
-	idArchiveProperties
-	idAdditionalStreamsInfo
-	idMainStreamsInfo
-	idFilesInfo
-	idPackInfo
-	idUnpackInfo
-	idSubStreamsInfo
-	idSize
-	idCRC
-	idFolder
-	idCodersUnpackSize
-	idNumUnpackStream
-	idEmptyStream
-	idEmptyFile
-	idAnti //nolint:deadcode,varcheck
-	idName
-	idCTime
-	idATime
-	idMTime
-	idWinAttributes
-	idComment //nolint:deadcode,varcheck
-	idEncodedHeader
-	idStartPos
-	idDummy
-)
-
-var signature = []byte{'7', 'z', 0xbc, 0xaf, 0x27, 0x1c}
+var errAlgorithm = errors.New("sevenzip: unsupported compression algorithm")
 
 // CryptoReadCloser adds a Password method to decompressors.
 type CryptoReadCloser interface {
@@ -132,17 +103,58 @@ func (f *folder) coderReader(readers []io.ReadCloser, coder uint64, password str
 
 type folderReadCloser struct {
 	io.ReadCloser
-	h hash.Hash
+	h    hash.Hash
+	wc   *plumbing.WriteCounter
+	size int64
 }
 
 func (rc *folderReadCloser) Checksum() []byte {
 	return rc.h.Sum(nil)
 }
 
-func newFolderReadCloser(rc io.ReadCloser) *folderReadCloser {
+func (rc *folderReadCloser) Seek(offset int64, whence int) (int64, error) {
+	var newo int64
+
+	switch whence {
+	case io.SeekStart:
+		newo = offset
+	case io.SeekCurrent:
+		newo = int64(rc.wc.Count()) + offset
+	case io.SeekEnd:
+		newo = rc.size + offset
+	default:
+		return 0, errors.New("invalid whence")
+	}
+
+	if newo < 0 {
+		return 0, errors.New("negative seek")
+	}
+
+	if newo < int64(rc.wc.Count()) {
+		return 0, errors.New("cannot seek backwards")
+	}
+
+	if newo > rc.size {
+		return 0, errors.New("cannot seek beyond EOF")
+	}
+
+	if _, err := io.CopyN(io.Discard, rc, newo-int64(rc.wc.Count())); err != nil {
+		return 0, err
+	}
+
+	return newo, nil
+}
+
+func (rc *folderReadCloser) Size() int64 {
+	return rc.size
+}
+
+func newFolderReadCloser(rc io.ReadCloser, size int64) *folderReadCloser {
 	nrc := new(folderReadCloser)
 	nrc.h = crc32.NewIEEE()
-	nrc.ReadCloser = plumbing.TeeReadCloser(rc, nrc.h)
+	nrc.wc = new(plumbing.WriteCounter)
+	nrc.ReadCloser = plumbing.TeeReadCloser(rc, io.MultiWriter(nrc.h, nrc.wc))
+	nrc.size = size
 
 	return nrc
 }
@@ -181,7 +193,11 @@ type streamsInfo struct {
 }
 
 func (si *streamsInfo) Folders() int {
-	return len(si.unpackInfo.folder)
+	if si != nil && si.unpackInfo != nil {
+		return len(si.unpackInfo.folder)
+	}
+
+	return 0
 }
 
 func (si *streamsInfo) FileFolderAndSize(file int) (int, uint64) {
@@ -220,6 +236,7 @@ func (si *streamsInfo) folderOffset(folder int) int64 {
 	return int64(si.packInfo.position + offset)
 }
 
+//nolint:cyclop,funlen
 func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) (*folderReadCloser, uint32, error) {
 	f := si.unpackInfo.folder[folder]
 	in := make([]io.ReadCloser, f.in)
@@ -281,7 +298,7 @@ func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) 
 		return nil, 0, errors.New("expecting one unbound output stream")
 	}
 
-	fr := newFolderReadCloser(out[unbound[0]])
+	fr := newFolderReadCloser(out[unbound[0]], int64(f.unpackSize()))
 
 	if si.unpackInfo.digest != nil {
 		return fr, si.unpackInfo.digest[folder], nil
@@ -390,6 +407,7 @@ func msdosModeToFileMode(m uint32) (mode os.FileMode) {
 	return mode
 }
 
+//nolint:cyclop
 func unixModeToFileMode(m uint32) os.FileMode {
 	mode := os.FileMode(m & 0o777)
 

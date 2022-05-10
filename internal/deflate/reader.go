@@ -5,20 +5,19 @@ import (
 	"errors"
 	"io"
 	"sync"
+
+	"github.com/bodgit/sevenzip/internal/util"
 )
 
+//nolint:gochecknoglobals
 var flateReaderPool sync.Pool
 
 type readCloser struct {
 	c  io.Closer
 	fr io.ReadCloser
-	mu sync.Mutex
 }
 
 func (rc *readCloser) Close() error {
-	rc.mu.Lock()
-	defer rc.mu.Unlock()
-
 	var err error
 
 	if rc.c != nil {
@@ -35,9 +34,6 @@ func (rc *readCloser) Close() error {
 }
 
 func (rc *readCloser) Read(p []byte) (int, error) {
-	rc.mu.Lock()
-	defer rc.mu.Unlock()
-
 	if rc.fr == nil {
 		return 0, errors.New("deflate: Read after Close")
 	}
@@ -55,12 +51,12 @@ func NewReader(_ []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, erro
 	if ok {
 		frf, ok := fr.(flate.Resetter)
 		if ok {
-			if err := frf.Reset(readers[0], nil); err != nil {
+			if err := frf.Reset(util.ByteReadCloser(readers[0]), nil); err != nil {
 				return nil, err
 			}
 		}
 	} else {
-		fr = flate.NewReader(readers[0])
+		fr = flate.NewReader(util.ByteReadCloser(readers[0]))
 	}
 
 	return &readCloser{

@@ -20,6 +20,7 @@ import (
 // one io.ReadCloser's providing the stream(s) of bytes.
 type Decompressor func([]byte, uint64, []io.ReadCloser) (io.ReadCloser, error)
 
+//nolint:gochecknoglobals
 var decompressors sync.Map
 
 func newCopyReader(_ []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
@@ -30,6 +31,7 @@ func newCopyReader(_ []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, 
 	return readers[0], nil
 }
 
+//nolint:gochecknoinits
 func init() {
 	// Copy
 	RegisterDecompressor([]byte{0x00}, Decompressor(newCopyReader))
