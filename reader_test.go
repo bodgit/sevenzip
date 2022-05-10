@@ -38,6 +38,7 @@ func readArchive(t *testing.T, r *sevenzip.ReadCloser) {
 	}
 }
 
+//nolint:funlen
 func TestOpenReader(t *testing.T) {
 	t.Parallel()
 

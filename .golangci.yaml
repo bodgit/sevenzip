@@ -3,9 +3,9 @@ linters:
   enable-all: true
   disable:
     - exhaustivestruct
+    - godox
     - goerr113
     - gomnd
-    - godox
     - ireturn
     - varnamelen
     - wrapcheck
