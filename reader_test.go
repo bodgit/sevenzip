@@ -97,6 +97,10 @@ func TestOpenReader(t *testing.T) {
 			name: "lz4",
 			file: "lz4.7z",
 		},
+		{
+			name: "zstd",
+			file: "zstd.7z",
+		},
 	}
 
 	for _, table := range tables {
@@ -241,4 +245,8 @@ func BenchmarkComplex(b *testing.B) {
 
 func BenchmarkLZ4(b *testing.B) {
 	benchmarkArchive(b, "lz4.7z")
+}
+
+func BenchmarkZstandard(b *testing.B) {
+	benchmarkArchive(b, "zstd.7z")
 }

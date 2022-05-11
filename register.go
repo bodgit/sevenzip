@@ -13,6 +13,7 @@ import (
 	"github.com/bodgit/sevenzip/internal/lz4"
 	"github.com/bodgit/sevenzip/internal/lzma"
 	"github.com/bodgit/sevenzip/internal/lzma2"
+	"github.com/bodgit/sevenzip/internal/zstd"
 )
 
 // Decompressor describes the function signature that decompression/decryption
@@ -46,6 +47,8 @@ func init() {
 	RegisterDecompressor([]byte{0x04, 0x01, 0x08}, Decompressor(deflate.NewReader))
 	// Bzip2
 	RegisterDecompressor([]byte{0x04, 0x02, 0x02}, Decompressor(bzip2.NewReader))
+	// Zstandard
+	RegisterDecompressor([]byte{0x04, 0xf7, 0x11, 0x01}, Decompressor(zstd.NewReader))
 	// LZ4
 	RegisterDecompressor([]byte{0x04, 0xf7, 0x11, 0x04}, Decompressor(lz4.NewReader))
 	// AES-CBC-256 & SHA-256
