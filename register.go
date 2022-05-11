@@ -10,6 +10,7 @@ import (
 	"github.com/bodgit/sevenzip/internal/bzip2"
 	"github.com/bodgit/sevenzip/internal/deflate"
 	"github.com/bodgit/sevenzip/internal/delta"
+	"github.com/bodgit/sevenzip/internal/lz4"
 	"github.com/bodgit/sevenzip/internal/lzma"
 	"github.com/bodgit/sevenzip/internal/lzma2"
 )
@@ -45,6 +46,8 @@ func init() {
 	RegisterDecompressor([]byte{0x04, 0x01, 0x08}, Decompressor(deflate.NewReader))
 	// Bzip2
 	RegisterDecompressor([]byte{0x04, 0x02, 0x02}, Decompressor(bzip2.NewReader))
+	// LZ4
+	RegisterDecompressor([]byte{0x04, 0xf7, 0x11, 0x04}, Decompressor(lz4.NewReader))
 	// AES-CBC-256 & SHA-256
 	RegisterDecompressor([]byte{0x06, 0xf1, 0x07, 0x01}, Decompressor(aes7z.NewReader))
 	// LZMA2
