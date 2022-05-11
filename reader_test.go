@@ -93,6 +93,18 @@ func TestOpenReader(t *testing.T) {
 			name: "complex",
 			file: "lzma1900.7z",
 		},
+		{
+			name: "lz4",
+			file: "lz4.7z",
+		},
+		{
+			name: "brotli",
+			file: "brotli.7z",
+		},
+		{
+			name: "zstd",
+			file: "zstd.7z",
+		},
 	}
 
 	for _, table := range tables {
@@ -233,4 +245,16 @@ func BenchmarkBCJ2(b *testing.B) {
 
 func BenchmarkComplex(b *testing.B) {
 	benchmarkArchive(b, "lzma1900.7z")
+}
+
+func BenchmarkLZ4(b *testing.B) {
+	benchmarkArchive(b, "lz4.7z")
+}
+
+func BenchmarkBrotli(b *testing.B) {
+	benchmarkArchive(b, "brotli.7z")
+}
+
+func BenchmarkZstandard(b *testing.B) {
+	benchmarkArchive(b, "zstd.7z")
 }
