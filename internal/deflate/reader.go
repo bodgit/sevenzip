@@ -1,12 +1,12 @@
 package deflate
 
 import (
-	"compress/flate"
 	"errors"
 	"io"
 	"sync"
 
 	"github.com/bodgit/sevenzip/internal/util"
+	"github.com/klauspost/compress/flate"
 )
 
 //nolint:gochecknoglobals
