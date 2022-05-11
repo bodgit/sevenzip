@@ -7,6 +7,7 @@ import (
 
 	"github.com/bodgit/sevenzip/internal/aes7z"
 	"github.com/bodgit/sevenzip/internal/bcj2"
+	"github.com/bodgit/sevenzip/internal/brotli"
 	"github.com/bodgit/sevenzip/internal/bzip2"
 	"github.com/bodgit/sevenzip/internal/deflate"
 	"github.com/bodgit/sevenzip/internal/delta"
@@ -49,6 +50,8 @@ func init() {
 	RegisterDecompressor([]byte{0x04, 0x02, 0x02}, Decompressor(bzip2.NewReader))
 	// Zstandard
 	RegisterDecompressor([]byte{0x04, 0xf7, 0x11, 0x01}, Decompressor(zstd.NewReader))
+	// Brotli
+	RegisterDecompressor([]byte{0x04, 0xf7, 0x11, 0x02}, Decompressor(brotli.NewReader))
 	// LZ4
 	RegisterDecompressor([]byte{0x04, 0xf7, 0x11, 0x04}, Decompressor(lz4.NewReader))
 	// AES-CBC-256 & SHA-256

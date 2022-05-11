@@ -98,6 +98,10 @@ func TestOpenReader(t *testing.T) {
 			file: "lz4.7z",
 		},
 		{
+			name: "brotli",
+			file: "brotli.7z",
+		},
+		{
 			name: "zstd",
 			file: "zstd.7z",
 		},
@@ -245,6 +249,10 @@ func BenchmarkComplex(b *testing.B) {
 
 func BenchmarkLZ4(b *testing.B) {
 	benchmarkArchive(b, "lz4.7z")
+}
+
+func BenchmarkBrotli(b *testing.B) {
+	benchmarkArchive(b, "brotli.7z")
 }
 
 func BenchmarkZstandard(b *testing.B) {

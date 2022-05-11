@@ -19,6 +19,6 @@ Current status:
 * Handles password-protected versions of both of the above (`7za a -mhc=on|off -mhe=on -ppassword test.7z ...`).
 * Handles archives split into multiple volumes, (`7za a -v100m test.7z ...`).
 * Validates CRC values as it parses the file.
-* Supports BCJ2, Bzip2, Copy, Deflate, Delta, LZ4, LZMA, LZMA2 and Zstandard methods.
+* Supports BCJ2, Brotli, Bzip2, Copy, Deflate, Delta, LZ4, LZMA, LZMA2 and Zstandard methods.
 
 More examples of 7-zip archives are needed to test all of the different combinations/algorithms possible.
