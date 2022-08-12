@@ -10,8 +10,12 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
+	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/bodgit/plumbing"
 	"github.com/bodgit/sevenzip/internal/pool"
@@ -38,6 +42,9 @@ type Reader struct {
 	p     string
 	File  []*File
 	pool  []pool.Pooler
+
+	fileListOnce sync.Once
+	fileList     []fileListEntry
 }
 
 // A ReadCloser is a Reader that must be closed when no longer needed.
@@ -58,10 +65,30 @@ type File struct {
 type fileReader struct {
 	rc util.SizeReadSeekCloser
 	f  *File
+	n  int64
 }
 
-func (fr *fileReader) Read(p []byte) (int, error) {
-	return fr.rc.Read(p)
+func (fr *fileReader) Stat() (fs.FileInfo, error) {
+	return headerFileInfo{&fr.f.FileHeader}, nil
+}
+
+func (fr *fileReader) Read(p []byte) (n int, err error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
+
+	if fr.n <= 0 {
+		return 0, io.EOF
+	}
+
+	if int64(len(p)) > fr.n {
+		p = p[0:fr.n]
+	}
+
+	n, err = fr.rc.Read(p)
+	fr.n -= int64(n)
+
+	return
 }
 
 func (fr *fileReader) Close() error {
@@ -112,12 +139,11 @@ func (f *File) Open() (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	fr := &fileReader{
+	return &fileReader{
 		rc: rc,
 		f:  f,
-	}
-
-	return plumbing.LimitReadCloser(fr, int64(f.UncompressedSize)), nil
+		n:  int64(f.UncompressedSize),
+	}, nil
 }
 
 // OpenReaderWithPassword will open the 7-zip file specified by name using
@@ -386,4 +412,264 @@ func (rc *ReadCloser) Close() error {
 	}
 
 	return err.ErrorOrNil()
+}
+
+type fileListEntry struct {
+	name  string
+	file  *File
+	isDir bool
+	isDup bool
+}
+
+type fileInfoDirEntry interface {
+	fs.FileInfo
+	fs.DirEntry
+}
+
+func (e *fileListEntry) stat() (fileInfoDirEntry, error) {
+	if e.isDup {
+		return nil, errors.New(e.name + ": duplicate entries in 7-zip file")
+	}
+
+	if !e.isDir {
+		return headerFileInfo{&e.file.FileHeader}, nil
+	}
+
+	return e, nil
+}
+
+func (e *fileListEntry) Name() string {
+	_, elem := split(e.name)
+
+	return elem
+}
+
+func (e *fileListEntry) Size() int64       { return 0 }
+func (e *fileListEntry) Mode() fs.FileMode { return fs.ModeDir | 0o555 }
+func (e *fileListEntry) Type() fs.FileMode { return fs.ModeDir }
+func (e *fileListEntry) IsDir() bool       { return true }
+func (e *fileListEntry) Sys() interface{}  { return nil }
+
+func (e *fileListEntry) ModTime() time.Time {
+	if e.file == nil {
+		return time.Time{}
+	}
+
+	return e.file.FileHeader.Modified.UTC()
+}
+
+func (e *fileListEntry) Info() (fs.FileInfo, error) { return e, nil }
+
+func toValidName(name string) string {
+	name = strings.ReplaceAll(name, `\`, `/`)
+
+	p := strings.TrimPrefix(path.Clean(name), "/")
+
+	for strings.HasPrefix(p, "../") {
+		p = p[len("../"):]
+	}
+
+	return p
+}
+
+//nolint:cyclop,gocognit
+func (z *Reader) initFileList() {
+	z.fileListOnce.Do(func() {
+		files := make(map[string]int)
+		knownDirs := make(map[string]int)
+
+		dirs := make(map[string]struct{})
+
+		for _, file := range z.File {
+			isDir := len(file.Name) > 0 && file.Name[len(file.Name)-1] == '/'
+
+			name := toValidName(file.Name)
+			if name == "" {
+				continue
+			}
+
+			if idx, ok := files[name]; ok {
+				z.fileList[idx].isDup = true
+
+				continue
+			}
+
+			if idx, ok := knownDirs[name]; ok {
+				z.fileList[idx].isDup = true
+
+				continue
+			}
+
+			for dir := path.Dir(name); dir != "."; dir = path.Dir(dir) {
+				dirs[dir] = struct{}{}
+			}
+
+			idx := len(z.fileList)
+			entry := fileListEntry{
+				name:  name,
+				file:  file,
+				isDir: isDir,
+			}
+			z.fileList = append(z.fileList, entry)
+			if isDir {
+				knownDirs[name] = idx
+			} else {
+				files[name] = idx
+			}
+		}
+		for dir := range dirs {
+			if _, ok := knownDirs[dir]; !ok {
+				if idx, ok := files[dir]; ok {
+					z.fileList[idx].isDup = true
+				} else {
+					entry := fileListEntry{
+						name:  dir,
+						file:  nil,
+						isDir: true,
+					}
+					z.fileList = append(z.fileList, entry)
+				}
+			}
+		}
+
+		sort.Slice(z.fileList, func(i, j int) bool { return fileEntryLess(z.fileList[i].name, z.fileList[j].name) })
+	})
+}
+
+func fileEntryLess(x, y string) bool {
+	xdir, xelem := split(x)
+	ydir, yelem := split(y)
+
+	return xdir < ydir || xdir == ydir && xelem < yelem
+}
+
+// Open opens the named file in the 7-zip archive, using the semantics of
+// fs.FS.Open: paths are always slash separated, with no leading / or ../
+// elements.
+func (z *Reader) Open(name string) (fs.File, error) {
+	z.initFileList()
+
+	if !fs.ValidPath(name) {
+		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrInvalid}
+	}
+
+	e := z.openLookup(name)
+	if e == nil {
+		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
+	}
+
+	if e.isDir {
+		return &openDir{e, z.openReadDir(name), 0}, nil
+	}
+
+	rc, err := e.file.Open()
+	if err != nil {
+		return nil, err
+	}
+
+	return rc.(fs.File), nil //nolint:forcetypeassert
+}
+
+func split(name string) (dir, elem string) {
+	if len(name) > 0 && name[len(name)-1] == '/' {
+		name = name[:len(name)-1]
+	}
+
+	i := len(name) - 1
+	for i >= 0 && name[i] != '/' {
+		i--
+	}
+
+	if i < 0 {
+		return ".", name
+	}
+
+	return name[:i], name[i+1:]
+}
+
+//nolint:gochecknoglobals
+var dotFile = &fileListEntry{name: "./", isDir: true}
+
+func (z *Reader) openLookup(name string) *fileListEntry {
+	if name == "." {
+		return dotFile
+	}
+
+	dir, elem := split(name)
+
+	files := z.fileList
+	i := sort.Search(len(files), func(i int) bool {
+		idir, ielem := split(files[i].name)
+
+		return idir > dir || idir == dir && ielem >= elem
+	})
+
+	if i < len(files) {
+		fname := files[i].name
+		if fname == name || len(fname) == len(name)+1 && fname[len(name)] == '/' && fname[:len(name)] == name {
+			return &files[i]
+		}
+	}
+
+	return nil
+}
+
+func (z *Reader) openReadDir(dir string) []fileListEntry {
+	files := z.fileList
+
+	i := sort.Search(len(files), func(i int) bool {
+		idir, _ := split(files[i].name)
+
+		return idir >= dir
+	})
+
+	j := sort.Search(len(files), func(j int) bool {
+		jdir, _ := split(files[j].name)
+
+		return jdir > dir
+	})
+
+	return files[i:j]
+}
+
+type openDir struct {
+	e      *fileListEntry
+	files  []fileListEntry
+	offset int
+}
+
+func (d *openDir) Close() error               { return nil }
+func (d *openDir) Stat() (fs.FileInfo, error) { return d.e.stat() }
+
+func (d *openDir) Read([]byte) (int, error) {
+	return 0, &fs.PathError{Op: "read", Path: d.e.name, Err: errors.New("is a directory")}
+}
+
+func (d *openDir) ReadDir(count int) ([]fs.DirEntry, error) {
+	n := len(d.files) - d.offset
+	if count > 0 && n > count {
+		n = count
+	}
+
+	if n == 0 {
+		if count <= 0 {
+			return nil, nil
+		}
+
+		return nil, io.EOF
+	}
+
+	list := make([]fs.DirEntry, n)
+	for i := range list {
+		s, err := d.files[d.offset+i].stat()
+		if err != nil {
+			return nil, err
+		}
+
+		list[i] = s
+	}
+
+	d.offset += n
+
+	return list, nil
 }
