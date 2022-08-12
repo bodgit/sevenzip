@@ -150,6 +150,7 @@ func (f *File) Open() (io.ReadCloser, error) {
 // password as the basis of the decryption key and return a ReadCloser. If
 // name has a ".001" suffix it is assumed there are multiple volumes and each
 // sequential volume will be opened.
+//
 //nolint:cyclop,funlen
 func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
 	f, err := os.Open(name)
