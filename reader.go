@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -148,7 +149,7 @@ func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
 		for i := 2; true; i++ {
 			f, err := os.Open(fmt.Sprintf("%s.%03d", strings.TrimSuffix(name, ext), i))
 			if err != nil {
-				if os.IsNotExist(err) {
+				if errors.Is(err, fs.ErrNotExist) {
 					break
 				}
 
