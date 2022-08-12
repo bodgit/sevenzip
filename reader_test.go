@@ -7,6 +7,7 @@ import (
 	"io"
 	"path/filepath"
 	"testing"
+	"testing/fstest"
 
 	"github.com/bodgit/sevenzip"
 	"github.com/bodgit/sevenzip/internal/util"
@@ -154,6 +155,20 @@ func TestOpenReaderWithPassword(t *testing.T) {
 
 			readArchive(t, r)
 		})
+	}
+}
+
+func TestFS(t *testing.T) {
+	t.Parallel()
+
+	r, err := sevenzip.OpenReader(filepath.Join("testdata", "lzma1900.7z"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+
+	if err := fstest.TestFS(r, "Asm/arm/7zCrcOpt.asm", "bin/x64/7zr.exe"); err != nil {
+		t.Fatal(err)
 	}
 }
 

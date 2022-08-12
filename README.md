@@ -9,7 +9,7 @@
 sevenzip
 ========
 
-A very rough attempt at a reader for 7-zip archives inspired by `archive/zip`.
+A reader for 7-zip archives inspired by `archive/zip`.
 
 Current status:
 
@@ -20,5 +20,6 @@ Current status:
 * Handles archives split into multiple volumes, (`7za a -v100m test.7z ...`).
 * Validates CRC values as it parses the file.
 * Supports BCJ2, Brotli, Bzip2, Copy, Deflate, Delta, LZ4, LZMA, LZMA2 and Zstandard methods.
+* Implements the `fs.FS` interface so you can treat an opened 7-zip archive like a filesystem.
 
 More examples of 7-zip archives are needed to test all of the different combinations/algorithms possible.
