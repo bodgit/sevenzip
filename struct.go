@@ -121,7 +121,7 @@ func (rc *folderReadCloser) Seek(offset int64, whence int) (int64, error) {
 	case io.SeekCurrent:
 		newo = int64(rc.wc.Count()) + offset
 	case io.SeekEnd:
-		newo = rc.size + offset
+		newo = rc.Size() + offset
 	default:
 		return 0, errors.New("invalid whence")
 	}
@@ -134,7 +134,7 @@ func (rc *folderReadCloser) Seek(offset int64, whence int) (int64, error) {
 		return 0, errors.New("cannot seek backwards")
 	}
 
-	if newo > rc.size {
+	if newo > rc.Size() {
 		return 0, errors.New("cannot seek beyond EOF")
 	}
 
