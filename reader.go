@@ -129,7 +129,7 @@ func (f *File) Open() (io.ReadCloser, error) {
 
 	rc, _ := f.zip.pool[f.folder].Get(f.offset)
 	if rc == nil {
-		rc, _, err = f.zip.folderReader(f.zip.si, f.folder)
+		rc, _, _, err = f.zip.folderReader(f.zip.si, f.folder)
 		if err != nil {
 			return nil, err
 		}
@@ -252,7 +252,7 @@ func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
 	return NewReaderWithPassword(r, size, "")
 }
 
-func (z *Reader) folderReader(si *streamsInfo, f int) (*folderReadCloser, uint32, error) {
+func (z *Reader) folderReader(si *streamsInfo, f int) (*folderReadCloser, uint32, bool, error) {
 	// Create a SectionReader covering all of the streams data
 	return si.folderReader(io.NewSectionReader(z.r, z.start, z.end), f, z.p)
 }
@@ -347,7 +347,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 			return errors.New("sevenzip: expected only one folder in header stream")
 		}
 
-		fr, crc, err := z.folderReader(streamsInfo, 0)
+		fr, crc, _, err := z.folderReader(streamsInfo, 0)
 		if err != nil {
 			return err
 		}

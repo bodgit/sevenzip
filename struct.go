@@ -81,24 +81,25 @@ func (f *folder) findOutBindPair(i uint64) *bindPair {
 	return nil
 }
 
-func (f *folder) coderReader(readers []io.ReadCloser, coder uint64, password string) (io.ReadCloser, error) {
+func (f *folder) coderReader(readers []io.ReadCloser, coder uint64, password string) (io.ReadCloser, bool, error) {
 	dcomp := decompressor(f.coder[coder].id)
 	if dcomp == nil {
-		return nil, errAlgorithm
+		return nil, false, errAlgorithm
 	}
 
 	cr, err := dcomp(f.coder[coder].properties, f.size[coder], readers)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
-	if crc, ok := cr.(CryptoReadCloser); ok {
+	crc, ok := cr.(CryptoReadCloser)
+	if ok {
 		if err = crc.Password(password); err != nil {
-			return nil, err
+			return nil, ok, err
 		}
 	}
 
-	return plumbing.LimitReadCloser(cr, int64(f.size[coder])), nil
+	return plumbing.LimitReadCloser(cr, int64(f.size[coder])), ok, nil
 }
 
 type folderReadCloser struct {
@@ -236,8 +237,8 @@ func (si *streamsInfo) folderOffset(folder int) int64 {
 	return int64(si.packInfo.position + offset)
 }
 
-//nolint:cyclop,funlen
-func (si *streamsInfo) folderReader(r io.ReaderAt, folder int, password string) (*folderReadCloser, uint32, error) {
+//nolint:cyclop,funlen,lll
+func (si *streamsInfo) folderReader(r io.ReaderAt, folder int, password string) (*folderReadCloser, uint32, bool, error) {
 	f := si.unpackInfo.folder[folder]
 	in := make([]io.ReadCloser, f.in)
 	out := make([]io.ReadCloser, f.out)
@@ -255,11 +256,14 @@ func (si *streamsInfo) folderReader(r io.ReaderAt, folder int, password string) 
 		offset += size
 	}
 
-	input, output := uint64(0), uint64(0)
+	var (
+		input, output uint64
+		enc           bool
+	)
 
 	for i, c := range f.coder {
 		if c.out != 1 {
-			return nil, 0, errors.New("more than one output stream")
+			return nil, 0, enc, errors.New("more than one output stream")
 		}
 
 		for j := input; j < input+c.in; j++ {
@@ -269,17 +273,24 @@ func (si *streamsInfo) folderReader(r io.ReaderAt, folder int, password string) 
 
 			bp := f.findInBindPair(j)
 			if bp == nil || out[bp.out] == nil {
-				return nil, 0, errors.New("cannot find bound stream")
+				return nil, 0, enc, errors.New("cannot find bound stream")
 			}
 
 			in[j] = out[bp.out]
 		}
 
-		var err error
+		var (
+			err       error
+			encrypted bool
+		)
 
-		out[output], err = f.coderReader(in[input:input+c.in], uint64(i), password)
+		out[output], encrypted, err = f.coderReader(in[input:input+c.in], uint64(i), password)
 		if err != nil {
-			return nil, 0, err
+			return nil, 0, enc, err
+		}
+
+		if encrypted {
+			enc = true
 		}
 
 		input += c.in
@@ -295,16 +306,16 @@ func (si *streamsInfo) folderReader(r io.ReaderAt, folder int, password string) 
 	}
 
 	if len(unbound) != 1 || out[unbound[0]] == nil {
-		return nil, 0, errors.New("expecting one unbound output stream")
+		return nil, 0, enc, errors.New("expecting one unbound output stream")
 	}
 
 	fr := newFolderReadCloser(out[unbound[0]], int64(f.unpackSize()))
 
 	if si.unpackInfo.digest != nil {
-		return fr, si.unpackInfo.digest[folder], nil
+		return fr, si.unpackInfo.digest[folder], enc, nil
 	}
 
-	return fr, 0, nil
+	return fr, 0, enc, nil
 }
 
 type filesInfo struct {
