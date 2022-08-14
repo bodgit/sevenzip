@@ -33,6 +33,26 @@ var (
 //nolint:gochecknoglobals
 var newPool pool.Constructor = pool.NewPool
 
+// PasswordError is returned by the various NewReader* and OpenReader*
+// functions if there is an error reading the 7-zip archive header and one or
+// more of the decompressors involved rely on the archive password.  In other
+// words they are decrypting as opposed to decompressing.
+//
+// This error is a hint at best as it is realistically impossible to
+// differentiate between a valid archive with the wrong password and a corrupt
+// archive with the correct password.
+type PasswordError struct {
+	error
+}
+
+func (e *PasswordError) Error() string {
+	return "sevenzip: bad password"
+}
+
+func (e *PasswordError) Unwrap() error {
+	return e.error
+}
+
 // A Reader serves content from a 7-Zip archive.
 type Reader struct {
 	r     io.ReaderAt
@@ -342,18 +362,26 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 
 	// If the header was encoded we should have sufficient information now
 	// to decode it
-	if streamsInfo != nil {
+	if streamsInfo != nil { //nolint:nestif
 		if streamsInfo.Folders() != 1 {
 			return errors.New("sevenzip: expected only one folder in header stream")
 		}
 
-		fr, crc, _, err := z.folderReader(streamsInfo, 0)
+		fr, crc, enc, err := z.folderReader(streamsInfo, 0)
 		if err != nil {
+			if enc {
+				return &PasswordError{err}
+			}
+
 			return err
 		}
 		defer fr.Close()
 
 		if header, err = readEncodedHeader(util.ByteReadCloser(fr)); err != nil {
+			if enc {
+				return &PasswordError{err}
+			}
+
 			return err
 		}
 

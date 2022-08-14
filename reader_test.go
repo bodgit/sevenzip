@@ -11,6 +11,7 @@ import (
 
 	"github.com/bodgit/sevenzip"
 	"github.com/bodgit/sevenzip/internal/util"
+	"github.com/stretchr/testify/assert"
 )
 
 func readArchive(t *testing.T, r *sevenzip.ReadCloser) {
@@ -131,14 +132,24 @@ func TestOpenReaderWithPassword(t *testing.T) {
 		name, file, password string
 	}{
 		{
-			name:     "no header compression",
+			name:     "no header compression, good password",
 			file:     "t2.7z",
 			password: "password",
 		},
 		{
-			name:     "with header compression",
+			name:     "no header compression, bad password",
+			file:     "t2.7z",
+			password: "notpassword",
+		},
+		{
+			name:     "with header compression, good password",
 			file:     "t3.7z",
 			password: "password",
+		},
+		{
+			name:     "with header compression, bad password",
+			file:     "t3.7z",
+			password: "notpassword",
 		},
 	}
 
@@ -149,7 +160,10 @@ func TestOpenReaderWithPassword(t *testing.T) {
 			t.Parallel()
 			r, err := sevenzip.OpenReaderWithPassword(filepath.Join("testdata", table.file), table.password)
 			if err != nil {
-				t.Fatal(err)
+				pe := new(sevenzip.PasswordError)
+				assert.ErrorAs(t, err, &pe)
+
+				return
 			}
 			defer r.Close()
 
