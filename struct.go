@@ -237,7 +237,7 @@ func (si *streamsInfo) folderOffset(folder int) int64 {
 }
 
 //nolint:cyclop,funlen
-func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) (*folderReadCloser, uint32, error) {
+func (si *streamsInfo) folderReader(r io.ReaderAt, folder int, password string) (*folderReadCloser, uint32, error) {
 	f := si.unpackInfo.folder[folder]
 	in := make([]io.ReadCloser, f.in)
 	out := make([]io.ReadCloser, f.out)
