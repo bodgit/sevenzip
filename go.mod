@@ -10,6 +10,7 @@ require (
 	github.com/klauspost/compress v1.18.5
 	github.com/pierrec/lz4/v4 v4.1.26
 	github.com/spf13/afero v1.15.0
+	github.com/stangelandcl/ppmd v0.0.0-20220913131414-854f82e93560
 	github.com/stretchr/testify v1.11.1
 	github.com/ulikunitz/xz v0.5.15
 	go4.org v0.0.0-20260112195520-a5071408f32f

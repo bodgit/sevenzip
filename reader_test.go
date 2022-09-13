@@ -202,6 +202,10 @@ func TestOpenReader(t *testing.T) {
 			name: "arm64",
 			file: "arm64.7z",
 		},
+		{
+			name: "ppmd",
+			file: "ppmd.7z",
+		},
 	}
 
 	for _, table := range tables {
