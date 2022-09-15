@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/andybalholm/brotli v1.0.4
 	github.com/bodgit/plumbing v1.2.0
-	github.com/bodgit/windows v1.0.0
+	github.com/bodgit/windows v1.0.1
 	github.com/connesc/cipherio v0.2.1
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/klauspost/compress v1.15.9
