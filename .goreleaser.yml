@@ -3,3 +3,5 @@ builds:
   - skip: true
 release:
   prerelease: auto
+changelog:
+  use: github-native
