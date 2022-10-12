@@ -12,7 +12,7 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.17
 	github.com/ulikunitz/xz v0.5.10
 	go4.org v0.0.0-20200411211856-f5505b9728dd
-	golang.org/x/text v0.3.7
+	golang.org/x/text v0.3.8
 )
 
 require github.com/hashicorp/errwrap v1.0.0 // indirect
