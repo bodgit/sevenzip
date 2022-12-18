@@ -11,6 +11,7 @@ import (
 
 	"github.com/bodgit/sevenzip"
 	"github.com/bodgit/sevenzip/internal/util"
+	"github.com/stretchr/testify/assert"
 )
 
 func readArchive(t *testing.T, r *sevenzip.ReadCloser) {
@@ -45,6 +46,7 @@ func TestOpenReader(t *testing.T) {
 
 	tables := []struct {
 		name, file string
+		volumes    []string
 	}{
 		{
 			name: "no header compression",
@@ -57,6 +59,14 @@ func TestOpenReader(t *testing.T) {
 		{
 			name: "multiple volume",
 			file: "multi.7z.001",
+			volumes: []string{
+				"multi.7z.001",
+				"multi.7z.002",
+				"multi.7z.003",
+				"multi.7z.004",
+				"multi.7z.005",
+				"multi.7z.006",
+			},
 		},
 		{
 			name: "empty streams and files",
@@ -118,6 +128,18 @@ func TestOpenReader(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer r.Close()
+
+			volumes := []string{}
+
+			if table.volumes != nil {
+				for _, v := range table.volumes {
+					volumes = append(volumes, filepath.Join("testdata", v))
+				}
+			} else {
+				volumes = append(volumes, filepath.Join("testdata", table.file))
+			}
+
+			assert.Equal(t, volumes, r.Volumes())
 
 			readArchive(t, r)
 		})

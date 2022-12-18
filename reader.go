@@ -405,6 +405,16 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	return nil
 }
 
+// Volumes returns the list of volumes that have been opened as part of the current archive.
+func (rc *ReadCloser) Volumes() []string {
+	volumes := make([]string, len(rc.f))
+	for idx, f := range rc.f {
+		volumes[idx] = f.Name()
+	}
+
+	return volumes
+}
+
 // Close closes the 7-zip file or volumes, rendering them unusable for I/O.
 func (rc *ReadCloser) Close() error {
 	var err *multierror.Error
