@@ -3,7 +3,7 @@ module github.com/bodgit/sevenzip
 go 1.17
 
 require (
-	github.com/andybalholm/brotli v1.0.4
+	github.com/andybalholm/brotli v1.0.5
 	github.com/bodgit/plumbing v1.3.0
 	github.com/bodgit/windows v1.0.1
 	github.com/connesc/cipherio v0.2.1
