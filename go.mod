@@ -13,7 +13,7 @@ require (
 	github.com/stretchr/testify v1.8.2
 	github.com/ulikunitz/xz v0.5.11
 	go4.org v0.0.0-20200411211856-f5505b9728dd
-	golang.org/x/text v0.7.0
+	golang.org/x/text v0.8.0
 )
 
 require (
