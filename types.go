@@ -777,7 +777,7 @@ func readHeader(r util.Reader) (*header, error) {
 	}
 
 	if id == idArchiveProperties {
-		return nil, errors.New("sevenzip: TODO idArchiveProperties") //nolint:goerr113
+		return nil, errors.New("sevenzip: TODO idArchiveProperties") //nolint:goerr113,revive
 
 		//nolint:govet
 		id, err = r.ReadByte()
@@ -787,7 +787,7 @@ func readHeader(r util.Reader) (*header, error) {
 	}
 
 	if id == idAdditionalStreamsInfo {
-		return nil, errors.New("sevenzip: TODO idAdditionalStreamsInfo") //nolint:goerr113
+		return nil, errors.New("sevenzip: TODO idAdditionalStreamsInfo") //nolint:goerr113,revive
 
 		//nolint:govet
 		id, err = r.ReadByte()
