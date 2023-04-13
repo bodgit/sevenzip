@@ -162,6 +162,11 @@ func TestOpenReaderWithPassword(t *testing.T) {
 			file:     "t3.7z",
 			password: "password",
 		},
+		{
+			name:     "issue 75",
+			file:     "7zcracker.7z",
+			password: "876",
+		},
 	}
 
 	for _, table := range tables {
