@@ -1,28 +1,28 @@
 package aes7z
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"errors"
 	"io"
-
-	"github.com/connesc/cipherio"
 )
 
 var errProperties = errors.New("aes7z: not enough properties")
 
 type readCloser struct {
 	rc       io.ReadCloser
-	br       io.Reader
 	salt, iv []byte
 	cycles   int
+	cbc      cipher.BlockMode
+	buf      bytes.Buffer
 }
 
 func (rc *readCloser) Close() error {
 	var err error
 	if rc.rc != nil {
 		err = rc.rc.Close()
-		rc.rc, rc.br = nil, nil
+		rc.rc = nil
 	}
 
 	return err
@@ -34,7 +34,7 @@ func (rc *readCloser) Password(p string) error {
 		return err
 	}
 
-	rc.br = cipherio.NewBlockReader(rc.rc, cipher.NewCBCDecrypter(block, rc.iv))
+	rc.cbc = cipher.NewCBCDecrypter(block, rc.iv)
 
 	return nil
 }
@@ -44,11 +44,27 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 		return 0, errors.New("aes7z: Read after Close")
 	}
 
-	if rc.br == nil {
+	if rc.cbc == nil {
 		return 0, errors.New("aes7z: no password set")
 	}
 
-	return rc.br.Read(p)
+	var block [aes.BlockSize]byte
+
+	for rc.buf.Len() < len(p) {
+		if n, err := io.ReadFull(rc.rc, block[:]); err != nil {
+			if err == io.EOF {
+				break
+			}
+
+			return n, err
+		}
+
+		rc.cbc.CryptBlocks(block[:], block[:])
+
+		_, _ = rc.buf.Write(block[:])
+	}
+
+	return rc.buf.Read(p)
 }
 
 // NewReader returns a new AES-256-CBC & SHA-256 io.ReadCloser. The Password
@@ -78,7 +94,7 @@ func NewReader(p []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, erro
 	}
 
 	rc.salt = p[2 : 2+salt]
-	rc.iv = make([]byte, 16)
+	rc.iv = make([]byte, aes.BlockSize)
 	copy(rc.iv, p[2+salt:])
 
 	rc.cycles = int(p[0] & 0x3f)
