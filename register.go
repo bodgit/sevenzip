@@ -17,6 +17,10 @@ import (
 	"github.com/bodgit/sevenzip/internal/zstd"
 )
 
+var (
+	aesCbc256CoderSignature = []byte{0x06, 0xf1, 0x07, 0x01}
+)
+
 // Decompressor describes the function signature that decompression/decryption
 // methods must implement to return a new instance of themselves. They are
 // passed any property bytes, the size of the stream and a slice of at least
@@ -55,7 +59,7 @@ func init() {
 	// LZ4
 	RegisterDecompressor([]byte{0x04, 0xf7, 0x11, 0x04}, Decompressor(lz4.NewReader))
 	// AES-CBC-256 & SHA-256
-	RegisterDecompressor([]byte{0x06, 0xf1, 0x07, 0x01}, Decompressor(aes7z.NewReader))
+	RegisterDecompressor(aesCbc256CoderSignature, Decompressor(aes7z.NewReader))
 	// LZMA2
 	RegisterDecompressor([]byte{0x21}, Decompressor(lzma2.NewReader))
 }

@@ -146,6 +146,16 @@ func (f *File) Open() (io.ReadCloser, error) {
 	}, nil
 }
 
+// IsEncrypted returns true if file is encrypted with AES
+func (f *File) IsEncrypted() bool {
+	for _, coder := range f.zip.si.unpackInfo.folder[f.folder].coder {
+		if bytes.Equal(aesCbc256CoderSignature, coder.id) {
+			return true
+		}
+	}
+	return false
+}
+
 // OpenReaderWithPassword will open the 7-zip file specified by name using
 // password as the basis of the decryption key and return a ReadCloser. If
 // name has a ".001" suffix it is assumed there are multiple volumes and each
