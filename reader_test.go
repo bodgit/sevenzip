@@ -9,8 +9,8 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/bodgit/sevenzip"
-	"github.com/bodgit/sevenzip/internal/util"
+	"github.com/todylcom/sevenzip"
+	"github.com/todylcom/sevenzip/internal/util"
 	"github.com/stretchr/testify/assert"
 )
 

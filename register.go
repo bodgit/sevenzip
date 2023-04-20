@@ -5,16 +5,16 @@ import (
 	"io"
 	"sync"
 
-	"github.com/bodgit/sevenzip/internal/aes7z"
-	"github.com/bodgit/sevenzip/internal/bcj2"
-	"github.com/bodgit/sevenzip/internal/brotli"
-	"github.com/bodgit/sevenzip/internal/bzip2"
-	"github.com/bodgit/sevenzip/internal/deflate"
-	"github.com/bodgit/sevenzip/internal/delta"
-	"github.com/bodgit/sevenzip/internal/lz4"
-	"github.com/bodgit/sevenzip/internal/lzma"
-	"github.com/bodgit/sevenzip/internal/lzma2"
-	"github.com/bodgit/sevenzip/internal/zstd"
+	"github.com/todylcom/sevenzip/internal/aes7z"
+	"github.com/todylcom/sevenzip/internal/bcj2"
+	"github.com/todylcom/sevenzip/internal/brotli"
+	"github.com/todylcom/sevenzip/internal/bzip2"
+	"github.com/todylcom/sevenzip/internal/deflate"
+	"github.com/todylcom/sevenzip/internal/delta"
+	"github.com/todylcom/sevenzip/internal/lz4"
+	"github.com/todylcom/sevenzip/internal/lzma"
+	"github.com/todylcom/sevenzip/internal/lzma2"
+	"github.com/todylcom/sevenzip/internal/zstd"
 )
 
 var (

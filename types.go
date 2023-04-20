@@ -10,7 +10,7 @@ import (
 	"math/bits"
 	"time"
 
-	"github.com/bodgit/sevenzip/internal/util"
+	"github.com/todylcom/sevenzip/internal/util"
 	"github.com/bodgit/windows"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
