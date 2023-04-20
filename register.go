@@ -5,16 +5,20 @@ import (
 	"io"
 	"sync"
 
-	"github.com/bodgit/sevenzip/internal/aes7z"
-	"github.com/bodgit/sevenzip/internal/bcj2"
-	"github.com/bodgit/sevenzip/internal/brotli"
-	"github.com/bodgit/sevenzip/internal/bzip2"
-	"github.com/bodgit/sevenzip/internal/deflate"
-	"github.com/bodgit/sevenzip/internal/delta"
-	"github.com/bodgit/sevenzip/internal/lz4"
-	"github.com/bodgit/sevenzip/internal/lzma"
-	"github.com/bodgit/sevenzip/internal/lzma2"
-	"github.com/bodgit/sevenzip/internal/zstd"
+	"github.com/todylcom/sevenzip/internal/aes7z"
+	"github.com/todylcom/sevenzip/internal/bcj2"
+	"github.com/todylcom/sevenzip/internal/brotli"
+	"github.com/todylcom/sevenzip/internal/bzip2"
+	"github.com/todylcom/sevenzip/internal/deflate"
+	"github.com/todylcom/sevenzip/internal/delta"
+	"github.com/todylcom/sevenzip/internal/lz4"
+	"github.com/todylcom/sevenzip/internal/lzma"
+	"github.com/todylcom/sevenzip/internal/lzma2"
+	"github.com/todylcom/sevenzip/internal/zstd"
+)
+
+var (
+	aesCbc256CoderSignature = []byte{0x06, 0xf1, 0x07, 0x01}
 )
 
 // Decompressor describes the function signature that decompression/decryption
@@ -55,7 +59,7 @@ func init() {
 	// LZ4
 	RegisterDecompressor([]byte{0x04, 0xf7, 0x11, 0x04}, Decompressor(lz4.NewReader))
 	// AES-CBC-256 & SHA-256
-	RegisterDecompressor([]byte{0x06, 0xf1, 0x07, 0x01}, Decompressor(aes7z.NewReader))
+	RegisterDecompressor(aesCbc256CoderSignature, Decompressor(aes7z.NewReader))
 	// LZMA2
 	RegisterDecompressor([]byte{0x21}, Decompressor(lzma2.NewReader))
 }

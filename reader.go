@@ -18,8 +18,8 @@ import (
 	"time"
 
 	"github.com/bodgit/plumbing"
-	"github.com/bodgit/sevenzip/internal/pool"
-	"github.com/bodgit/sevenzip/internal/util"
+	"github.com/todylcom/sevenzip/internal/pool"
+	"github.com/todylcom/sevenzip/internal/util"
 	"github.com/hashicorp/go-multierror"
 	"go4.org/readerutil"
 )
@@ -144,6 +144,16 @@ func (f *File) Open() (io.ReadCloser, error) {
 		f:  f,
 		n:  int64(f.UncompressedSize),
 	}, nil
+}
+
+// IsEncrypted returns true if file is encrypted with AES
+func (f *File) IsEncrypted() bool {
+	for _, coder := range f.zip.si.unpackInfo.folder[f.folder].coder {
+		if bytes.Equal(aesCbc256CoderSignature, coder.id) {
+			return true
+		}
+	}
+	return false
 }
 
 // OpenReaderWithPassword will open the 7-zip file specified by name using

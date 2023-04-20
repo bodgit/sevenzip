@@ -5,7 +5,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/bodgit/sevenzip/internal/util"
+	"github.com/todylcom/sevenzip/internal/util"
 	"github.com/klauspost/compress/flate"
 )
 
