@@ -51,12 +51,12 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 	var block [aes.BlockSize]byte
 
 	for rc.buf.Len() < len(p) {
-		if n, err := io.ReadFull(rc.rc, block[:]); err != nil {
-			if err == io.EOF {
+		if _, err := io.ReadFull(rc.rc, block[:]); err != nil {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 
-			return n, err
+			return 0, err
 		}
 
 		rc.cbc.CryptBlocks(block[:], block[:])
