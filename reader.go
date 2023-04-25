@@ -254,7 +254,7 @@ func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
 
 func (z *Reader) folderReader(si *streamsInfo, f int) (*folderReadCloser, uint32, error) {
 	// Create a SectionReader covering all of the streams data
-	return si.FolderReader(io.NewSectionReader(z.r, z.start, z.end), f, z.p)
+	return si.FolderReader(io.NewSectionReader(z.r, z.start, z.end-z.start), f, z.p)
 }
 
 //nolint:cyclop,funlen,gocognit
