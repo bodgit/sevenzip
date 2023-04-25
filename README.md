@@ -18,6 +18,7 @@ Current status:
 * Handles compressed headers, (`7za a -mhc=on test.7z ...`).
 * Handles password-protected versions of both of the above (`7za a -mhc=on|off -mhe=on -ppassword test.7z ...`).
 * Handles archives split into multiple volumes, (`7za a -v100m test.7z ...`).
+* Handles self-extracting archives, (`7za a -sfx archive.exe ...`).
 * Validates CRC values as it parses the file.
 * Supports BCJ2, Brotli, Bzip2, Copy, Deflate, Delta, LZ4, LZMA, LZMA2 and Zstandard methods.
 * Implements the `fs.FS` interface so you can treat an opened 7-zip archive like a filesystem.

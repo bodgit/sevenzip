@@ -257,38 +257,99 @@ func (z *Reader) folderReader(si *streamsInfo, f int) (*folderReadCloser, uint32
 	return si.FolderReader(io.NewSectionReader(z.r, z.start, z.end-z.start), f, z.p)
 }
 
-//nolint:cyclop,funlen,gocognit
+const (
+	chunkSize   = 4096
+	searchLimit = 1 << 20 // 1 MiB
+)
+
+func findSignature(r io.ReaderAt, search []byte) ([]int64, error) {
+	var (
+		offset  int64
+		offsets []int64
+	)
+
+	chunk := make([]byte, chunkSize+len(search))
+
+	for offset < searchLimit {
+		n, err := r.ReadAt(chunk, offset)
+
+		for i := 0; ; {
+			idx := bytes.Index(chunk[i:n], search)
+			if idx == -1 {
+				break
+			}
+
+			offsets = append(offsets, offset+int64(i+idx))
+			if offsets[0] == 0 {
+				// If signature is at the beginning, return immediately, it's a regular archive
+				return offsets, nil
+			}
+
+			i += idx + 1
+		}
+
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+
+			return nil, err
+		}
+
+		offset += chunkSize
+	}
+
+	return offsets, nil
+}
+
+//nolint:cyclop,funlen,gocognit,gocyclo
 func (z *Reader) init(r io.ReaderAt, size int64) error {
 	h := crc32.NewIEEE()
 	tra := plumbing.TeeReaderAt(r, h)
-	sr := io.NewSectionReader(tra, 0, size) // Will only read first 32 bytes
 
-	var sh signatureHeader
-	if err := binary.Read(sr, binary.LittleEndian, &sh); err != nil {
+	signature := []byte{'7', 'z', 0xbc, 0xaf, 0x27, 0x1c}
+
+	offsets, err := findSignature(r, signature)
+	if err != nil {
 		return err
 	}
 
-	signature := []byte{'7', 'z', 0xbc, 0xaf, 0x27, 0x1c}
-	if !bytes.Equal(sh.Signature[:], signature) {
+	if len(offsets) == 0 {
 		return errFormat
 	}
 
-	z.r = r
-
-	h.Reset()
-
 	var (
-		err   error
+		sr    *io.SectionReader
+		off   int64
 		start startHeader
 	)
 
-	if err = binary.Read(sr, binary.LittleEndian, &start); err != nil {
-		return err
+	for _, off = range offsets {
+		sr = io.NewSectionReader(tra, off, size-off) // Will only read first 32 bytes
+
+		var sh signatureHeader
+		if err = binary.Read(sr, binary.LittleEndian, &sh); err != nil {
+			return err
+		}
+
+		z.r = r
+
+		h.Reset()
+
+		if err = binary.Read(sr, binary.LittleEndian, &start); err != nil {
+			return err
+		}
+
+		// CRC of the start header should match
+		if util.CRC32Equal(h.Sum(nil), sh.CRC) {
+			break
+		}
+
+		err = errChecksum
 	}
 
-	// CRC of the start header should match
-	if !util.CRC32Equal(h.Sum(nil), sh.CRC) {
-		return errChecksum
+	if err != nil {
+		return err
 	}
 
 	// Work out where we are in the file (32, avoiding magic numbers)
@@ -300,6 +361,9 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	if z.end, err = sr.Seek(int64(start.Offset), io.SeekCurrent); err != nil {
 		return err
 	}
+
+	z.start += off
+	z.end += off
 
 	h.Reset()
 

@@ -116,6 +116,10 @@ func TestOpenReader(t *testing.T) {
 			name: "zstd",
 			file: "zstd.7z",
 		},
+		{
+			name: "sfx",
+			file: "sfx.exe",
+		},
 	}
 
 	for _, table := range tables {
