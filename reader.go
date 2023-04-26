@@ -263,14 +263,10 @@ const (
 )
 
 func findSignature(r io.ReaderAt, search []byte) ([]int64, error) {
-	var (
-		offset  int64
-		offsets []int64
-	)
-
 	chunk := make([]byte, chunkSize+len(search))
+	offsets := make([]int64, 0, 2)
 
-	for offset < searchLimit {
+	for offset := int64(0); offset < searchLimit; offset += chunkSize {
 		n, err := r.ReadAt(chunk, offset)
 
 		for i := 0; ; {
@@ -295,8 +291,6 @@ func findSignature(r io.ReaderAt, search []byte) ([]int64, error) {
 
 			return nil, err
 		}
-
-		offset += chunkSize
 	}
 
 	return offsets, nil
