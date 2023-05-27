@@ -136,6 +136,10 @@ func TestOpenReader(t *testing.T) {
 			name: "sparc",
 			file: "sparc.7z",
 		},
+		{
+			name: "issue 87",
+			file: "issue87.7z",
+		},
 	}
 
 	for _, table := range tables {
