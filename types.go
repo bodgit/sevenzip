@@ -705,8 +705,8 @@ func readFilesInfo(r util.Reader) (*filesInfo, error) {
 			for i := range f.file {
 				if f.file[i].isEmptyStream {
 					f.file[i].isEmptyFile = empty[j]
+					j++
 				}
-				j++
 			}
 		case idCTime:
 			times, err := readTimes(r, files)
