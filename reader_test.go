@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 	"testing/fstest"
+	"testing/iotest"
 
 	"github.com/bodgit/sevenzip"
 	"github.com/bodgit/sevenzip/internal/util"
@@ -28,7 +29,7 @@ func readArchive(t *testing.T, r *sevenzip.ReadCloser) {
 
 		h.Reset()
 
-		if _, err := io.Copy(h, rc); err != nil {
+		if _, err := io.Copy(h, iotest.OneByteReader(rc)); err != nil {
 			t.Fatal(err)
 		}
 
