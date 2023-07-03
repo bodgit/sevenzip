@@ -41,7 +41,7 @@ func NewReader(p []byte, s uint64, readers []io.ReadCloser) (io.ReadCloser, erro
 	h := bytes.NewBuffer(p)
 	_ = binary.Write(h, binary.LittleEndian, s)
 
-	lr, err := lzma.NewReader(io.MultiReader(h, readers[0]))
+	lr, err := lzma.NewReader(multiReader(h, readers[0]))
 	if err != nil {
 		return nil, err
 	}
@@ -50,4 +50,36 @@ func NewReader(p []byte, s uint64, readers []io.ReadCloser) (io.ReadCloser, erro
 		c: readers[0],
 		r: lr,
 	}, nil
+}
+
+func multiReader(b *bytes.Buffer, rc io.ReadCloser) io.Reader {
+	mr := io.MultiReader(b, rc)
+
+	if br, ok := rc.(io.ByteReader); ok {
+		return &multiByteReader{
+			b:  b,
+			br: br,
+			mr: mr,
+		}
+	}
+
+	return mr
+}
+
+type multiByteReader struct {
+	b  *bytes.Buffer
+	br io.ByteReader
+	mr io.Reader
+}
+
+func (m *multiByteReader) ReadByte() (byte, error) {
+	if m.b.Len() > 0 {
+		return m.b.ReadByte()
+	}
+
+	return m.br.ReadByte()
+}
+
+func (m *multiByteReader) Read(p []byte) (n int, err error) {
+	return m.mr.Read(p)
 }
