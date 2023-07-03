@@ -33,7 +33,7 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 	}
 
 	if n := rc.conv.Convert(rc.buf.Bytes(), false); n > 0 {
-		return rc.buf.Read(p[:n])
+		return rc.buf.Read(p[:min(n, len(p))])
 	}
 
 	return rc.buf.Read(p)
