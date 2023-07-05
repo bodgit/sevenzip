@@ -18,9 +18,9 @@ import (
 	"time"
 
 	"github.com/bodgit/plumbing"
+	"github.com/hashicorp/go-multierror"
 	"github.com/todylcom/sevenzip/internal/pool"
 	"github.com/todylcom/sevenzip/internal/util"
-	"github.com/hashicorp/go-multierror"
 	"go4.org/readerutil"
 )
 
@@ -148,6 +148,9 @@ func (f *File) Open() (io.ReadCloser, error) {
 
 // IsEncrypted returns true if file is encrypted with AES
 func (f *File) IsEncrypted() bool {
+	if f.zip == nil || f.zip.si == nil || f.zip.si.unpackInfo == nil {
+		return false
+	}
 	for _, coder := range f.zip.si.unpackInfo.folder[f.folder].coder {
 		if bytes.Equal(aesCbc256CoderSignature, coder.id) {
 			return true
