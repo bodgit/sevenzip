@@ -7,7 +7,7 @@ require (
 	github.com/bodgit/plumbing v1.3.0
 	github.com/bodgit/windows v1.0.1
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/klauspost/compress v1.16.7
+	github.com/klauspost/compress v1.17.0
 	github.com/pierrec/lz4/v4 v4.1.18
 	github.com/stretchr/testify v1.8.4
 	github.com/ulikunitz/xz v0.5.11
