@@ -541,7 +541,7 @@ func toValidName(name string) string {
 	return p
 }
 
-//nolint:cyclop,gocognit
+//nolint:cyclop
 func (z *Reader) initFileList() {
 	z.fileListOnce.Do(func() {
 		files := make(map[string]int)
