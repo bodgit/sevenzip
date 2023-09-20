@@ -3,8 +3,8 @@
 [![Coverage Status](https://coveralls.io/repos/github/bodgit/sevenzip/badge.svg?branch=master)](https://coveralls.io/github/bodgit/sevenzip?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/bodgit/sevenzip)](https://goreportcard.com/report/github.com/bodgit/sevenzip)
 [![GoDoc](https://godoc.org/github.com/bodgit/sevenzip?status.svg)](https://godoc.org/github.com/bodgit/sevenzip)
+![Go version](https://img.shields.io/badge/Go-1.20-brightgreen.svg)
 ![Go version](https://img.shields.io/badge/Go-1.19-brightgreen.svg)
-![Go version](https://img.shields.io/badge/Go-1.18-brightgreen.svg)
 
 sevenzip
 ========
