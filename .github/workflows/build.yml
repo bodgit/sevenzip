@@ -1,18 +1,18 @@
----
-name: build
+name: Build
 on:
   push:
-    tags:
-      - v*
     branches:
       - main
-      - master
   pull_request:
-permissions:
-  contents: write
-  pull-requests: read
+    branches:
+      - main
+  workflow_dispatch:
+  schedule:
+    - cron: 0 0 * * 1
+
 jobs:
-  build:
+  test:
+    name: Build and Test
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -20,45 +20,37 @@ jobs:
         go:
           - '1.19'
           - '1.20'
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
+
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go }}
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
+        if: github.event_name == 'pull_request'
         with:
           only-new-issues: true
+
       - name: Test
         run: go test -v -coverprofile=cover.out ./...
+
       - name: Send coverage
         uses: shogo82148/actions-goveralls@v1
         with:
           path-to-profile: cover.out
           flag-name: Go-${{ matrix.go }}
           parallel: true
+
   finish:
-    needs: build
+    needs: test
     runs-on: ubuntu-latest
+
     steps:
       - uses: shogo82148/actions-goveralls@v1
         with:
           parallel-finished: true
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.20'
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v5.0.0
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          version: latest
-          args: release --rm-dist
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
