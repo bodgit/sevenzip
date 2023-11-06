@@ -46,8 +46,9 @@ const (
 )
 
 var (
-	errIncompleteRead = errors.New("sevenzip: incomplete read")
-	errUnexpectedID   = errors.New("sevenzip: unexpected id")
+	errIncompleteRead    = errors.New("sevenzip: incomplete read")
+	errUnexpectedID      = errors.New("sevenzip: unexpected id")
+	errMissingUnpackInfo = errors.New("sevenzip: missing unpack info")
 )
 
 func readUint64(r io.ByteReader) (uint64, error) {
@@ -510,6 +511,10 @@ func readStreamsInfo(r util.Reader) (*streamsInfo, error) {
 	}
 
 	if id == idSubStreamsInfo {
+		if s.unpackInfo == nil {
+			return nil, errMissingUnpackInfo
+		}
+
 		if s.subStreamsInfo, err = readSubStreamsInfo(r, s.unpackInfo.folder); err != nil {
 			return nil, err
 		}

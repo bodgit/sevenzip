@@ -47,6 +47,7 @@ func TestOpenReader(t *testing.T) {
 	tables := []struct {
 		name, file string
 		volumes    []string
+		err        error
 	}{
 		{
 			name: "no header compression",
@@ -140,6 +141,11 @@ func TestOpenReader(t *testing.T) {
 			name: "issue 87",
 			file: "issue87.7z",
 		},
+		{
+			name: "issue 113",
+			file: "COMPRESS-492.7z",
+			err:  sevenzip.ErrMissingUnpackInfo,
+		},
 	}
 
 	for _, table := range tables {
@@ -149,7 +155,9 @@ func TestOpenReader(t *testing.T) {
 			t.Parallel()
 			r, err := sevenzip.OpenReader(filepath.Join("testdata", table.file))
 			if err != nil {
-				t.Fatal(err)
+				assert.ErrorIs(t, err, table.err)
+
+				return
 			}
 			defer r.Close()
 
