@@ -1,3 +1,5 @@
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/bodgit/sevenzip/badge)](https://securityscorecards.dev/viewer/?uri=github.com/bodgit/sevenzip)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/6882/badge)](https://www.bestpractices.dev/projects/6882)
 [![GitHub release](https://img.shields.io/github/v/release/bodgit/sevenzip)](https://github.com/bodgit/sevenzip/releases)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/bodgit/sevenzip/build.yml?branch=main)](https://github.com/bodgit/sevenzip/actions?query=workflow%3ABuild)
 [![Coverage Status](https://coveralls.io/repos/github/bodgit/sevenzip/badge.svg?branch=master)](https://coveralls.io/github/bodgit/sevenzip?branch=master)

@@ -7,6 +7,9 @@ on:
       - edited
       - synchronize
 
+permissions:
+  contents: read
+
 jobs:
   main:
     name: Validate PR title
@@ -16,12 +19,12 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: amannn/action-semantic-pull-request@v5
+      - uses: amannn/action-semantic-pull-request@c3cd5d1ea3580753008872425915e343e351ab54 # v5.2.0
         id: lint_pr_title
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: marocchino/sticky-pull-request-comment@v2
+      - uses: marocchino/sticky-pull-request-comment@efaaab3fd41a9c3de579aba759d2552635e590fd # v2.8.0
         if: always() && steps.lint_pr_title.outputs.error_message != null
         with:
           header: pr-title-lint-error
@@ -36,7 +39,7 @@ jobs:
             ${{ steps.lint_pr_title.outputs.error_message }}
             ```
 
-      - uses: marocchino/sticky-pull-request-comment@v2
+      - uses: marocchino/sticky-pull-request-comment@efaaab3fd41a9c3de579aba759d2552635e590fd # v2.8.0
         if: steps.lint_pr_title.outputs.error_message == null
         with:
           header: pr-title-lint-error
