@@ -834,7 +834,9 @@ func readHeader(r util.Reader) (*header, error) {
 			continue
 		}
 
-		h.filesInfo.file[i].CRC32 = h.streamsInfo.subStreamsInfo.digest[j]
+		if len(h.streamsInfo.subStreamsInfo.digest) > j {
+			h.filesInfo.file[i].CRC32 = h.streamsInfo.subStreamsInfo.digest[j]
+		}
 		_, h.filesInfo.file[i].UncompressedSize = h.streamsInfo.FileFolderAndSize(j)
 		j++
 	}
