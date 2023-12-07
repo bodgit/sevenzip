@@ -8,7 +8,7 @@ require (
 	github.com/bodgit/windows v1.0.1
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/klauspost/compress v1.17.4
-	github.com/pierrec/lz4/v4 v4.1.18
+	github.com/pierrec/lz4/v4 v4.1.19
 	github.com/stretchr/testify v1.8.4
 	github.com/ulikunitz/xz v0.5.11
 	go4.org v0.0.0-20200411211856-f5505b9728dd
