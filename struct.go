@@ -39,7 +39,6 @@ type packInfo struct {
 	streams  uint64
 	size     []uint64
 	digest   []uint32
-	defined  []bool
 }
 
 type coder struct {
@@ -174,16 +173,14 @@ func (f *folder) unpackSize() uint64 {
 }
 
 type unpackInfo struct {
-	folder  []*folder
-	digest  []uint32
-	defined []bool
+	folder []*folder
+	digest []uint32
 }
 
 type subStreamsInfo struct {
 	streams []uint64
 	size    []uint64
 	digest  []uint32
-	defined []bool
 }
 
 type streamsInfo struct {
@@ -205,13 +202,15 @@ func (si *streamsInfo) FileFolderAndSize(file int) (int, uint64) {
 
 	var (
 		folder  int
-		streams uint64
+		streams uint64 = 1
 	)
 
-	for folder, streams = range si.subStreamsInfo.streams {
-		total += streams
-		if uint64(file) < total {
-			break
+	if si.subStreamsInfo != nil {
+		for folder, streams = range si.subStreamsInfo.streams {
+			total += streams
+			if uint64(file) < total {
+				break
+			}
 		}
 	}
 
