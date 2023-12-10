@@ -143,6 +143,10 @@ func TestOpenReader(t *testing.T) {
 			file: "issue87.7z",
 		},
 		{
+			name: "issue 112",
+			file: "file_and_empty.7z",
+		},
+		{
 			name: "issue 113",
 			file: "COMPRESS-492.7z",
 			err:  sevenzip.ErrMissingUnpackInfo,
