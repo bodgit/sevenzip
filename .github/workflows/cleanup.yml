@@ -1,0 +1,40 @@
+name: Clean up per-branch caches
+
+on:
+  pull_request:
+    types:
+      - closed
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+
+    permissions:
+      actions: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+      - name: Cleanup
+        run: |
+          gh extension install actions/gh-actions-cache
+
+          BRANCH=refs/pull/${{ github.event.pull_request.number }}/merge
+
+          echo "Fetching list of cache keys"
+          keys=$(gh actions-cache list -R $GITHUB_REPOSITORY -B $BRANCH -L 100 | cut -f 1)
+
+          set +e
+          echo "Deleting caches..."
+          for key in $keys ; do
+            gh actions-cache delete $key -R $GITHUB_REPOSITORY -B $BRANCH --confirm
+          done
+          echo "Done"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
