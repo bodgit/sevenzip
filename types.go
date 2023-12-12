@@ -132,24 +132,23 @@ func readSizes(r io.ByteReader, count uint64) ([]uint64, error) {
 	return sizes, nil
 }
 
-func readCRC(r util.Reader, count uint64) ([]uint32, []bool, error) {
+func readCRC(r util.Reader, count uint64) ([]uint32, error) {
 	defined, err := readOptionalBool(r, count)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	crcs := make([]uint32, count)
 
-	for i := uint64(0); i < count; i++ {
-		var crc uint32
-		if err := binary.Read(r, binary.LittleEndian, &crc); err != nil {
-			return nil, nil, fmt.Errorf("readCRC: Read error: %w", err)
+	for i := range defined {
+		if defined[i] {
+			if err := binary.Read(r, binary.LittleEndian, &crcs[i]); err != nil {
+				return nil, fmt.Errorf("readCRC: Read error: %w", err)
+			}
 		}
-
-		crcs[i] = crc
 	}
 
-	return crcs, defined, nil
+	return crcs, nil
 }
 
 //nolint:cyclop
@@ -185,7 +184,7 @@ func readPackInfo(r util.Reader) (*packInfo, error) {
 	}
 
 	if id == idCRC {
-		if p.digest, p.defined, err = readCRC(r, p.streams); err != nil {
+		if p.digest, err = readCRC(r, p.streams); err != nil {
 			return nil, err
 		}
 
@@ -385,7 +384,7 @@ func readUnpackInfo(r util.Reader) (*unpackInfo, error) {
 	}
 
 	if id == idCRC {
-		if u.digest, u.defined, err = readCRC(r, folders); err != nil {
+		if u.digest, err = readCRC(r, folders); err != nil {
 			return nil, err
 		}
 
@@ -462,7 +461,7 @@ func readSubStreamsInfo(r util.Reader, folder []*folder) (*subStreamsInfo, error
 	}
 
 	if id == idCRC {
-		if s.digest, s.defined, err = readCRC(r, files); err != nil {
+		if s.digest, err = readCRC(r, files); err != nil {
 			return nil, err
 		}
 
@@ -533,7 +532,7 @@ func readStreamsInfo(r util.Reader) (*streamsInfo, error) {
 }
 
 func readTimes(r util.Reader, count uint64) ([]time.Time, error) {
-	_, err := readOptionalBool(r, count)
+	defined, err := readOptionalBool(r, count)
 	if err != nil {
 		return nil, err
 	}
@@ -555,15 +554,17 @@ func readTimes(r util.Reader, count uint64) ([]time.Time, error) {
 		return nil, errors.New("sevenzip: TODO readTimes external") //nolint:goerr113
 	}
 
-	times := make([]time.Time, 0, count)
+	times := make([]time.Time, count)
 
-	for i := uint64(0); i < count; i++ {
-		var ft windows.Filetime
-		if err := binary.Read(r, binary.LittleEndian, &ft); err != nil {
-			return nil, fmt.Errorf("readTimes: Read error: %w", err)
+	for i := range defined {
+		if defined[i] {
+			var ft windows.Filetime
+			if err := binary.Read(r, binary.LittleEndian, &ft); err != nil {
+				return nil, fmt.Errorf("readTimes: Read error: %w", err)
+			}
+
+			times[i] = time.Unix(0, ft.Nanoseconds()).UTC()
 		}
-
-		times = append(times, time.Unix(0, ft.Nanoseconds()).UTC())
 	}
 
 	return times, nil
@@ -625,7 +626,7 @@ func readNames(r util.Reader, count, length uint64) ([]string, error) {
 }
 
 func readAttributes(r util.Reader, count uint64) ([]uint32, error) {
-	_, err := readOptionalBool(r, count)
+	defined, err := readOptionalBool(r, count)
 	if err != nil {
 		return nil, err
 	}
@@ -648,9 +649,12 @@ func readAttributes(r util.Reader, count uint64) ([]uint32, error) {
 	}
 
 	attributes := make([]uint32, count)
-	for i := uint64(0); i < count; i++ {
-		if err := binary.Read(r, binary.LittleEndian, &attributes[i]); err != nil {
-			return nil, fmt.Errorf("readAttributes: Read error: %w", err)
+
+	for i := range defined {
+		if defined[i] {
+			if err := binary.Read(r, binary.LittleEndian, &attributes[i]); err != nil {
+				return nil, fmt.Errorf("readAttributes: Read error: %w", err)
+			}
 		}
 	}
 
@@ -827,6 +831,10 @@ func readHeader(r util.Reader) (*header, error) {
 		return nil, errUnexpectedID
 	}
 
+	if h.streamsInfo == nil || h.filesInfo == nil {
+		return h, nil
+	}
+
 	j := 0
 
 	for i := range h.filesInfo.file {
@@ -834,7 +842,10 @@ func readHeader(r util.Reader) (*header, error) {
 			continue
 		}
 
-		h.filesInfo.file[i].CRC32 = h.streamsInfo.subStreamsInfo.digest[j]
+		if h.streamsInfo.subStreamsInfo != nil {
+			h.filesInfo.file[i].CRC32 = h.streamsInfo.subStreamsInfo.digest[j]
+		}
+
 		_, h.filesInfo.file[i].UncompressedSize = h.streamsInfo.FileFolderAndSize(j)
 		j++
 	}

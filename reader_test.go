@@ -35,6 +35,12 @@ func readArchive(t *testing.T, r *sevenzip.ReadCloser) {
 
 		rc.Close()
 
+		if f.UncompressedSize > 0 && f.CRC32 == 0 {
+			t.Log("archive member", f.Name, "has no CRC")
+
+			continue
+		}
+
 		if !util.CRC32Equal(h.Sum(nil), f.CRC32) {
 			t.Fatal(errors.New("CRC doesn't match"))
 		}
@@ -141,6 +147,10 @@ func TestOpenReader(t *testing.T) {
 		{
 			name: "issue 87",
 			file: "issue87.7z",
+		},
+		{
+			name: "issue 112",
+			file: "file_and_empty.7z",
 		},
 		{
 			name: "issue 113",
