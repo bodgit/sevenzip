@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.5](https://github.com/bodgit/sevenzip/compare/v1.4.4...v1.4.5) (2023-12-12)
+
+
+### Bug Fixes
+
+* Handle lack of CRC digests ([#143](https://github.com/bodgit/sevenzip/issues/143)) ([4ead944](https://github.com/bodgit/sevenzip/commit/4ead944ad71398931b70a09ea40ba9ce742f4bf7))
+* Handle small reads in branch converters ([#144](https://github.com/bodgit/sevenzip/issues/144)) ([dfaf538](https://github.com/bodgit/sevenzip/commit/dfaf538402be45e6cd12064b3d49e7496d2b22f4))
+
 ## [1.4.4](https://github.com/bodgit/sevenzip/compare/v1.4.3...v1.4.4) (2023-11-06)
 
 
