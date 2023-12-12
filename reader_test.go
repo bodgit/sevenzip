@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 	"testing/fstest"
+	"testing/iotest"
 
 	"github.com/bodgit/sevenzip"
 	"github.com/bodgit/sevenzip/internal/util"
@@ -28,7 +29,7 @@ func readArchive(t *testing.T, r *sevenzip.ReadCloser) {
 
 		h.Reset()
 
-		if _, err := io.Copy(h, rc); err != nil {
+		if _, err := io.Copy(h, iotest.OneByteReader(rc)); err != nil {
 			t.Fatal(err)
 		}
 
@@ -331,4 +332,20 @@ func BenchmarkBrotli(b *testing.B) {
 
 func BenchmarkZstandard(b *testing.B) {
 	benchmarkArchive(b, "zstd.7z")
+}
+
+func BenchmarkBCJ(b *testing.B) {
+	benchmarkArchive(b, "bcj.7z")
+}
+
+func BenchmarkPPC(b *testing.B) {
+	benchmarkArchive(b, "ppc.7z")
+}
+
+func BenchmarkARM(b *testing.B) {
+	benchmarkArchive(b, "arm.7z")
+}
+
+func BenchmarkSPARC(b *testing.B) {
+	benchmarkArchive(b, "sparc.7z")
 }
