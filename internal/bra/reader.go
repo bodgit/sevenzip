@@ -9,6 +9,7 @@ import (
 type readCloser struct {
 	rc   io.ReadCloser
 	buf  bytes.Buffer
+	n    int
 	conv converter
 }
 
@@ -30,13 +31,19 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 		if !errors.Is(err, io.EOF) {
 			return 0, err
 		}
+
+		if rc.buf.Len() < rc.conv.Size() {
+			rc.n = rc.buf.Len()
+		}
 	}
 
-	if n := rc.conv.Convert(rc.buf.Bytes(), false); n > 0 {
-		return rc.buf.Read(p[:min(n, len(p))])
-	}
+	rc.n += rc.conv.Convert(rc.buf.Bytes()[rc.n:], false)
 
-	return rc.buf.Read(p)
+	n, err := rc.buf.Read(p[:min(rc.n, len(p))])
+
+	rc.n -= n
+
+	return n, err
 }
 
 func newReader(readers []io.ReadCloser, conv converter) (io.ReadCloser, error) {
