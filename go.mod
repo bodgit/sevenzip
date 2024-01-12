@@ -3,7 +3,7 @@ module github.com/bodgit/sevenzip
 go 1.19
 
 require (
-	github.com/andybalholm/brotli v1.0.6
+	github.com/andybalholm/brotli v1.1.0
 	github.com/bodgit/plumbing v1.3.0
 	github.com/bodgit/windows v1.0.1
 	github.com/hashicorp/go-multierror v1.1.1
