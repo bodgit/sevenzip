@@ -264,7 +264,7 @@ func ExampleOpenReader() {
 	// 10
 }
 
-func benchmarkArchive(b *testing.B, file string) {
+func benchmarkArchive(b *testing.B, file string, optimised bool) {
 	b.Helper()
 
 	h := crc32.NewIEEE()
@@ -289,7 +289,9 @@ func benchmarkArchive(b *testing.B, file string) {
 				b.Fatal(err)
 			}
 
-			rc.Close()
+			if optimised {
+				rc.Close()
+			}
 
 			if !util.CRC32Equal(h.Sum(nil), f.CRC32) {
 				b.Fatal(errors.New("CRC doesn't match"))
@@ -301,61 +303,69 @@ func benchmarkArchive(b *testing.B, file string) {
 }
 
 func BenchmarkBzip2(b *testing.B) {
-	benchmarkArchive(b, "bzip2.7z")
+	benchmarkArchive(b, "bzip2.7z", true)
 }
 
 func BenchmarkCopy(b *testing.B) {
-	benchmarkArchive(b, "copy.7z")
+	benchmarkArchive(b, "copy.7z", true)
 }
 
 func BenchmarkDeflate(b *testing.B) {
-	benchmarkArchive(b, "deflate.7z")
+	benchmarkArchive(b, "deflate.7z", true)
 }
 
 func BenchmarkDelta(b *testing.B) {
-	benchmarkArchive(b, "delta.7z")
+	benchmarkArchive(b, "delta.7z", true)
 }
 
 func BenchmarkLZMA(b *testing.B) {
-	benchmarkArchive(b, "lzma.7z")
+	benchmarkArchive(b, "lzma.7z", true)
 }
 
 func BenchmarkLZMA2(b *testing.B) {
-	benchmarkArchive(b, "lzma2.7z")
+	benchmarkArchive(b, "lzma2.7z", true)
 }
 
 func BenchmarkBCJ2(b *testing.B) {
-	benchmarkArchive(b, "bcj2.7z")
+	benchmarkArchive(b, "bcj2.7z", true)
 }
 
 func BenchmarkComplex(b *testing.B) {
-	benchmarkArchive(b, "lzma1900.7z")
+	benchmarkArchive(b, "lzma1900.7z", true)
 }
 
 func BenchmarkLZ4(b *testing.B) {
-	benchmarkArchive(b, "lz4.7z")
+	benchmarkArchive(b, "lz4.7z", true)
 }
 
 func BenchmarkBrotli(b *testing.B) {
-	benchmarkArchive(b, "brotli.7z")
+	benchmarkArchive(b, "brotli.7z", true)
 }
 
 func BenchmarkZstandard(b *testing.B) {
-	benchmarkArchive(b, "zstd.7z")
+	benchmarkArchive(b, "zstd.7z", true)
+}
+
+func BenchmarkNaiveReader(b *testing.B) {
+	benchmarkArchive(b, "lzma1900.7z", false)
+}
+
+func BenchmarkOptimisedReader(b *testing.B) {
+	benchmarkArchive(b, "lzma1900.7z", true)
 }
 
 func BenchmarkBCJ(b *testing.B) {
-	benchmarkArchive(b, "bcj.7z")
+	benchmarkArchive(b, "bcj.7z", true)
 }
 
 func BenchmarkPPC(b *testing.B) {
-	benchmarkArchive(b, "ppc.7z")
+	benchmarkArchive(b, "ppc.7z", true)
 }
 
 func BenchmarkARM(b *testing.B) {
-	benchmarkArchive(b, "arm.7z")
+	benchmarkArchive(b, "arm.7z", true)
 }
 
 func BenchmarkSPARC(b *testing.B) {
-	benchmarkArchive(b, "sparc.7z")
+	benchmarkArchive(b, "sparc.7z", true)
 }
