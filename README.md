@@ -8,8 +8,7 @@
 ![Go version](https://img.shields.io/badge/Go-1.20-brightgreen.svg)
 ![Go version](https://img.shields.io/badge/Go-1.19-brightgreen.svg)
 
-sevenzip
-========
+# sevenzip
 
 A reader for 7-zip archives inspired by `archive/zip`.
 
@@ -26,3 +25,87 @@ Current status:
 * Implements the `fs.FS` interface so you can treat an opened 7-zip archive like a filesystem.
 
 More examples of 7-zip archives are needed to test all of the different combinations/algorithms possible.
+
+## Frequently Asked Questions
+
+### Why is my code running so slow?
+
+Someone might write the following simple code:
+```golang
+func extractArchive(archive string) error {
+        r, err := sevenzip.OpenReader(archive)
+        if err != nil {
+                return err
+        }
+        defer r.Close()
+
+        for _, f := range r.File {
+                rc, err := f.Open()
+                if err != nil {
+                        return err
+                }
+                defer rc.Close()
+
+                // Extract the file
+        }
+
+        return nil
+}
+```
+Unlike a zip archive where every file is individually compressed, 7-zip archives can have all of the files compressed together in one long compressed stream, supposedly to achieve a better compression ratio.
+In a naive random access implementation, to read the first file you start at the beginning of the compressed stream and read out that files worth of bytes.
+To read the second file you have to start at the beginning of the compressed stream again, read and discard the first files worth of bytes to get to the correct offset in the stream, then read out the second files worth of bytes.
+You can see that for an archive that contains hundreds of files, extraction gets progressively slower as you have to read and discard more and more data just to get to the right offset in the stream.
+
+This package contains an optimisation that caches and reuses the underlying compressed stream reader so you don't have to keep starting from the beginning for each file, but it does require you to call `rc.Close()` before extracting the next file.
+So write your code similar to this:
+```golang
+func extractFile(file *sevenzip.File) error {
+        rc, err := f.Open()
+        if err != nil {
+                return err
+        }
+        defer rc.Close()
+
+        // Extract the file
+
+        return nil
+}
+
+func extractArchive(archive string) error {
+        r, err := sevenzip.OpenReader(archive)
+        if err != nil {
+                return err
+        }
+        defer r.Close()
+
+        for _, f := range r.File {
+                if err = extractFile(f); err != nil {
+                        return err
+                }
+        }
+
+        return nil
+}
+```
+You can see the main difference is to not defer all of the `Close()` calls until the end of `extractArchive()`.
+
+There is a pair of benchmarks in this package that demonstrates the performance boost that the optimisation provides:
+```
+$ go test -v -run='^$' -bench='Reader$' -benchtime=60s
+goos: darwin
+goarch: amd64
+pkg: github.com/bodgit/sevenzip
+cpu: Intel(R) Core(TM) i9-8950HK CPU @ 2.90GHz
+BenchmarkNaiveReader
+BenchmarkNaiveReader-12        	       2	33883477004 ns/op
+BenchmarkOptimisedReader
+BenchmarkOptimisedReader-12    	     402	 180606463 ns/op
+PASS
+ok  	github.com/bodgit/sevenzip	191.827s
+```
+The archive used here is just the reference LZMA SDK archive, which is only 1 MiB in size but does contain 630+ files.
+The only difference between the two benchmarks is the above change to call `rc.Close()` between files so the stream reuse optimisation takes effect.
+
+Finally, don't try and extract the files in a different order compared to the natural order within the archive as that will also undo the optimisation.
+The worst scenario would likely be to extract the archive in reverse order.
