@@ -324,8 +324,14 @@ type FileHeader struct {
 	Attributes       uint32
 	CRC32            uint32
 	UncompressedSize uint64
-	isEmptyStream    bool
-	isEmptyFile      bool
+
+	// Stream is an opaque identifier representing the compressed stream
+	// that contains the file. Any File with the same value can be assumed
+	// to be stored within the same stream.
+	Stream int
+
+	isEmptyStream bool
+	isEmptyFile   bool
 }
 
 // FileInfo returns an fs.FileInfo for the FileHeader.

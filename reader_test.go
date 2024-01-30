@@ -3,9 +3,11 @@ package sevenzip_test
 import (
 	"errors"
 	"fmt"
+	"hash"
 	"hash/crc32"
 	"io"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"testing/fstest"
 	"testing/iotest"
@@ -13,38 +15,60 @@ import (
 	"github.com/bodgit/sevenzip"
 	"github.com/bodgit/sevenzip/internal/util"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/sync/errgroup"
 )
 
-func readArchive(t *testing.T, r *sevenzip.ReadCloser) {
-	t.Helper()
+func reader(r io.Reader) io.Reader {
+	return r
+}
 
-	h := crc32.NewIEEE()
+func extractFile(tb testing.TB, r io.Reader, h hash.Hash, f *sevenzip.File) error {
+	tb.Helper()
+
+	h.Reset()
+
+	if _, err := io.Copy(h, r); err != nil {
+		return err
+	}
+
+	if f.UncompressedSize > 0 && f.CRC32 == 0 {
+		tb.Log("archive member", f.Name, "has no CRC")
+
+		return nil
+	}
+
+	if !util.CRC32Equal(h.Sum(nil), f.CRC32) {
+		return errors.New("CRC doesn't match")
+	}
+
+	return nil
+}
+
+//nolint:lll
+func extractArchive(tb testing.TB, r *sevenzip.ReadCloser, stream int, h hash.Hash, fn func(io.Reader) io.Reader, optimised bool) error {
+	tb.Helper()
 
 	for _, f := range r.File {
-		rc, err := f.Open()
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer rc.Close()
-
-		h.Reset()
-
-		if _, err := io.Copy(h, iotest.OneByteReader(rc)); err != nil {
-			t.Fatal(err)
-		}
-
-		rc.Close()
-
-		if f.UncompressedSize > 0 && f.CRC32 == 0 {
-			t.Log("archive member", f.Name, "has no CRC")
-
+		if stream >= 0 && f.Stream != stream {
 			continue
 		}
 
-		if !util.CRC32Equal(h.Sum(nil), f.CRC32) {
-			t.Fatal(errors.New("CRC doesn't match"))
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		defer rc.Close()
+
+		if err = extractFile(tb, fn(rc), h, f); err != nil {
+			return err
+		}
+
+		if optimised {
+			rc.Close()
 		}
 	}
+
+	return nil
 }
 
 //nolint:funlen
@@ -184,7 +208,9 @@ func TestOpenReader(t *testing.T) {
 
 			assert.Equal(t, volumes, r.Volumes())
 
-			readArchive(t, r)
+			if err := extractArchive(t, r, -1, crc32.NewIEEE(), iotest.OneByteReader, true); err != nil {
+				t.Fatal(err)
+			}
 		})
 	}
 }
@@ -223,7 +249,9 @@ func TestOpenReaderWithPassword(t *testing.T) {
 			}
 			defer r.Close()
 
-			readArchive(t, r)
+			if err := extractArchive(t, r, -1, crc32.NewIEEE(), iotest.OneByteReader, true); err != nil {
+				t.Fatal(err)
+			}
 		})
 	}
 }
@@ -264,6 +292,76 @@ func ExampleOpenReader() {
 	// 10
 }
 
+func benchmarkArchiveParallel(b *testing.B, file string) {
+	b.Helper()
+
+	for n := 0; n < b.N; n++ {
+		r, err := sevenzip.OpenReader(filepath.Join("testdata", file))
+		if err != nil {
+			b.Fatal(err)
+		}
+		defer r.Close()
+
+		streams := make(map[int]struct{}, len(r.File))
+
+		for _, f := range r.File {
+			streams[f.Stream] = struct{}{}
+		}
+
+		eg := new(errgroup.Group)
+		eg.SetLimit(runtime.NumCPU())
+
+		for stream := range streams {
+			stream := stream
+
+			eg.Go(func() error {
+				return extractArchive(b, r, stream, crc32.NewIEEE(), reader, true)
+			})
+		}
+
+		if err := eg.Wait(); err != nil {
+			b.Fatal(err)
+		}
+
+		r.Close()
+	}
+}
+
+func benchmarkArchiveNaiveParallel(b *testing.B, file string, workers int) {
+	b.Helper()
+
+	for n := 0; n < b.N; n++ {
+		r, err := sevenzip.OpenReader(filepath.Join("testdata", file))
+		if err != nil {
+			b.Fatal(err)
+		}
+		defer r.Close()
+
+		eg := new(errgroup.Group)
+		eg.SetLimit(workers)
+
+		for _, f := range r.File {
+			f := f
+
+			eg.Go(func() error {
+				rc, err := f.Open()
+				if err != nil {
+					return err
+				}
+				defer rc.Close()
+
+				return extractFile(b, rc, crc32.NewIEEE(), f)
+			})
+		}
+
+		if err := eg.Wait(); err != nil {
+			b.Fatal(err)
+		}
+
+		r.Close()
+	}
+}
+
 func benchmarkArchive(b *testing.B, file string, optimised bool) {
 	b.Helper()
 
@@ -276,26 +374,8 @@ func benchmarkArchive(b *testing.B, file string, optimised bool) {
 		}
 		defer r.Close()
 
-		for _, f := range r.File {
-			rc, err := f.Open()
-			if err != nil {
-				b.Fatal(err)
-			}
-			defer rc.Close()
-
-			h.Reset()
-
-			if _, err := io.Copy(h, rc); err != nil {
-				b.Fatal(err)
-			}
-
-			if optimised {
-				rc.Close()
-			}
-
-			if !util.CRC32Equal(h.Sum(nil), f.CRC32) {
-				b.Fatal(errors.New("CRC doesn't match"))
-			}
+		if err := extractArchive(b, r, -1, h, reader, optimised); err != nil {
+			b.Fatal(err)
 		}
 
 		r.Close()
@@ -352,6 +432,18 @@ func BenchmarkNaiveReader(b *testing.B) {
 
 func BenchmarkOptimisedReader(b *testing.B) {
 	benchmarkArchive(b, "lzma1900.7z", true)
+}
+
+func BenchmarkNaiveParallelReader(b *testing.B) {
+	benchmarkArchiveNaiveParallel(b, "lzma1900.7z", runtime.NumCPU())
+}
+
+func BenchmarkNaiveSingleParallelReader(b *testing.B) {
+	benchmarkArchiveNaiveParallel(b, "lzma1900.7z", 1)
+}
+
+func BenchmarkParallelReader(b *testing.B) {
+	benchmarkArchiveParallel(b, "lzma1900.7z")
 }
 
 func BenchmarkBCJ(b *testing.B) {
