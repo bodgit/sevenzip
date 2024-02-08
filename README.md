@@ -55,7 +55,7 @@ func extractArchive(archive string) error {
 Unlike a zip archive where every file is individually compressed, 7-zip archives can have all of the files compressed together in one long compressed stream, supposedly to achieve a better compression ratio.
 In a naive random access implementation, to read the first file you start at the beginning of the compressed stream and read out that files worth of bytes.
 To read the second file you have to start at the beginning of the compressed stream again, read and discard the first files worth of bytes to get to the correct offset in the stream, then read out the second files worth of bytes.
-You can see that for an archive that contains hundreds of files, extraction gets progressively slower as you have to read and discard more and more data just to get to the right offset in the stream.
+You can see that for an archive that contains hundreds of files, extraction can get progressively slower as you have to read and discard more and more data just to get to the right offset in the stream.
 
 This package contains an optimisation that caches and reuses the underlying compressed stream reader so you don't have to keep starting from the beginning for each file, but it does require you to call `rc.Close()` before extracting the next file.
 So write your code similar to this:
@@ -90,7 +90,7 @@ func extractArchive(archive string) error {
 ```
 You can see the main difference is to not defer all of the `Close()` calls until the end of `extractArchive()`.
 
-There is a pair of benchmarks in this package that demonstrates the performance boost that the optimisation provides:
+There is a set of benchmarks in this package that demonstrates the performance boost that the optimisation provides, amongst other techniques:
 ```
 $ go test -v -run='^$' -bench='Reader$' -benchtime=60s
 goos: darwin
@@ -98,14 +98,24 @@ goarch: amd64
 pkg: github.com/bodgit/sevenzip
 cpu: Intel(R) Core(TM) i9-8950HK CPU @ 2.90GHz
 BenchmarkNaiveReader
-BenchmarkNaiveReader-12        	       2	33883477004 ns/op
+BenchmarkNaiveReader-12                  	       2	31077542628 ns/op
 BenchmarkOptimisedReader
-BenchmarkOptimisedReader-12    	     402	 180606463 ns/op
+BenchmarkOptimisedReader-12              	     434	 164854747 ns/op
+BenchmarkNaiveParallelReader
+BenchmarkNaiveParallelReader-12          	     240	 361869339 ns/op
+BenchmarkNaiveSingleParallelReader
+BenchmarkNaiveSingleParallelReader-12    	     412	 171027895 ns/op
+BenchmarkParallelReader
+BenchmarkParallelReader-12               	     636	 112551812 ns/op
 PASS
-ok  	github.com/bodgit/sevenzip	191.827s
+ok  	github.com/bodgit/sevenzip	472.251s
 ```
-The archive used here is just the reference LZMA SDK archive, which is only 1 MiB in size but does contain 630+ files.
-The only difference between the two benchmarks is the above change to call `rc.Close()` between files so the stream reuse optimisation takes effect.
+The archive used here is just the reference LZMA SDK archive, which is only 1 MiB in size but does contain 630+ files split across three compression streams.
+The only difference between BenchmarkNaiveReader and the rest is the lack of a call to `rc.Close()` between files so the stream reuse optimisation doesn't take effect.
 
-Finally, don't try and extract the files in a different order compared to the natural order within the archive as that will also undo the optimisation.
+Don't try and blindly throw goroutines at the problem either as this can also undo the optimisation; a naive implementation that uses a pool of multiple goroutines to extract each file ends up being nearly 50% slower, even just using a pool of one goroutine can end up being less efficient.
+The optimal way to employ goroutines is to make use of the `sevenzip.FileHeader.Stream` field; extract files with the same value using the same goroutine.
+This achieves a 50% speed improvement with the LZMA SDK archive, but it very much depends on how many streams there are in the archive.
+
+In general, don't try and extract the files in a different order compared to the natural order within the archive as that will also undo the optimisation.
 The worst scenario would likely be to extract the archive in reverse order.
