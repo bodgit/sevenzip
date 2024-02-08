@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/bodgit/sevenzip/compare/v1.4.5...v1.5.0) (2024-02-08)
+
+
+### Features
+
+* Export the folder/stream identifier ([#169](https://github.com/bodgit/sevenzip/issues/169)) ([187a49e](https://github.com/bodgit/sevenzip/commit/187a49e243ec0618b527851fcee0503d8436e7c2))
+
 ## [1.4.5](https://github.com/bodgit/sevenzip/compare/v1.4.4...v1.4.5) (2023-12-12)
 
 
