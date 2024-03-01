@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/klauspost/compress v1.17.7
 	github.com/pierrec/lz4/v4 v4.1.21
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	github.com/ulikunitz/xz v0.5.11
 	go4.org v0.0.0-20200411211856-f5505b9728dd
 	golang.org/x/sync v0.6.0
