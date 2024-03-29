@@ -1,10 +1,10 @@
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/bodgit/sevenzip/badge)](https://securityscorecards.dev/viewer/?uri=github.com/bodgit/sevenzip)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/gooxion/sevenzip/badge)](https://securityscorecards.dev/viewer/?uri=github.com/gooxion/sevenzip)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/6882/badge)](https://www.bestpractices.dev/projects/6882)
-[![GitHub release](https://img.shields.io/github/v/release/bodgit/sevenzip)](https://github.com/bodgit/sevenzip/releases)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/bodgit/sevenzip/build.yml?branch=main)](https://github.com/bodgit/sevenzip/actions?query=workflow%3ABuild)
-[![Coverage Status](https://coveralls.io/repos/github/bodgit/sevenzip/badge.svg?branch=master)](https://coveralls.io/github/bodgit/sevenzip?branch=master)
-[![Go Report Card](https://goreportcard.com/badge/github.com/bodgit/sevenzip)](https://goreportcard.com/report/github.com/bodgit/sevenzip)
-[![GoDoc](https://godoc.org/github.com/bodgit/sevenzip?status.svg)](https://godoc.org/github.com/bodgit/sevenzip)
+[![GitHub release](https://img.shields.io/github/v/release/gooxion/sevenzip)](https://github.com/gooxion/sevenzip/releases)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/gooxion/sevenzip/build.yml?branch=main)](https://github.com/gooxion/sevenzip/actions?query=workflow%3ABuild)
+[![Coverage Status](https://coveralls.io/repos/github/gooxion/sevenzip/badge.svg?branch=master)](https://coveralls.io/github/gooxion/sevenzip?branch=master)
+[![Go Report Card](https://goreportcard.com/badge/github.com/gooxion/sevenzip)](https://goreportcard.com/report/github.com/gooxion/sevenzip)
+[![GoDoc](https://godoc.org/github.com/gooxion/sevenzip?status.svg)](https://godoc.org/github.com/gooxion/sevenzip)
 ![Go version](https://img.shields.io/badge/Go-1.22-brightgreen.svg)
 ![Go version](https://img.shields.io/badge/Go-1.21-brightgreen.svg)
 
@@ -95,7 +95,7 @@ There is a set of benchmarks in this package that demonstrates the performance b
 $ go test -v -run='^$' -bench='Reader$' -benchtime=60s
 goos: darwin
 goarch: amd64
-pkg: github.com/bodgit/sevenzip
+pkg: github.com/gooxion/sevenzip
 cpu: Intel(R) Core(TM) i9-8950HK CPU @ 2.90GHz
 BenchmarkNaiveReader
 BenchmarkNaiveReader-12                  	       2	31077542628 ns/op
@@ -108,7 +108,7 @@ BenchmarkNaiveSingleParallelReader-12    	     412	 171027895 ns/op
 BenchmarkParallelReader
 BenchmarkParallelReader-12               	     636	 112551812 ns/op
 PASS
-ok  	github.com/bodgit/sevenzip	472.251s
+ok  	github.com/gooxion/sevenzip	472.251s
 ```
 The archive used here is just the reference LZMA SDK archive, which is only 1 MiB in size but does contain 630+ files split across three compression streams.
 The only difference between BenchmarkNaiveReader and the rest is the lack of a call to `rc.Close()` between files so the stream reuse optimisation doesn't take effect.

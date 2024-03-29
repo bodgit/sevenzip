@@ -6,7 +6,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/bodgit/sevenzip/internal/util"
+	"github.com/gooxion/sevenzip/internal/util"
 	"github.com/hashicorp/go-multierror"
 )
 

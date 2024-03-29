@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/bodgit/plumbing"
-	"github.com/bodgit/sevenzip/internal/util"
+	"github.com/gooxion/sevenzip/internal/util"
 )
 
 var errAlgorithm = errors.New("sevenzip: unsupported compression algorithm")

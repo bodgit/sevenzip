@@ -5,17 +5,17 @@ import (
 	"io"
 	"sync"
 
-	"github.com/bodgit/sevenzip/internal/aes7z"
-	"github.com/bodgit/sevenzip/internal/bcj2"
-	"github.com/bodgit/sevenzip/internal/bra"
-	"github.com/bodgit/sevenzip/internal/brotli"
-	"github.com/bodgit/sevenzip/internal/bzip2"
-	"github.com/bodgit/sevenzip/internal/deflate"
-	"github.com/bodgit/sevenzip/internal/delta"
-	"github.com/bodgit/sevenzip/internal/lz4"
-	"github.com/bodgit/sevenzip/internal/lzma"
-	"github.com/bodgit/sevenzip/internal/lzma2"
-	"github.com/bodgit/sevenzip/internal/zstd"
+	"github.com/gooxion/sevenzip/internal/aes7z"
+	"github.com/gooxion/sevenzip/internal/bcj2"
+	"github.com/gooxion/sevenzip/internal/bra"
+	"github.com/gooxion/sevenzip/internal/brotli"
+	"github.com/gooxion/sevenzip/internal/bzip2"
+	"github.com/gooxion/sevenzip/internal/deflate"
+	"github.com/gooxion/sevenzip/internal/delta"
+	"github.com/gooxion/sevenzip/internal/lz4"
+	"github.com/gooxion/sevenzip/internal/lzma"
+	"github.com/gooxion/sevenzip/internal/lzma2"
+	"github.com/gooxion/sevenzip/internal/zstd"
 )
 
 // Decompressor describes the function signature that decompression/decryption
