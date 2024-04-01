@@ -29,7 +29,12 @@ func (rc *readCloser) Close() error {
 }
 
 func (rc *readCloser) Password(p string) error {
-	block, err := aes.NewCipher(calculateKey(p, rc.cycles, rc.salt))
+	key, err := calculateKey(p, rc.cycles, rc.salt)
+	if err != nil {
+		return err
+	}
+
+	block, err := aes.NewCipher(key)
 	if err != nil {
 		return err
 	}
