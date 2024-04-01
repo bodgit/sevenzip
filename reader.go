@@ -544,7 +544,7 @@ func toValidName(name string) string {
 	return p
 }
 
-//nolint:cyclop
+//nolint:cyclop,funlen
 func (z *Reader) initFileList() {
 	z.fileListOnce.Do(func() {
 		files := make(map[string]int)
@@ -583,12 +583,14 @@ func (z *Reader) initFileList() {
 				isDir: isDir,
 			}
 			z.fileList = append(z.fileList, entry)
+
 			if isDir {
 				knownDirs[name] = idx
 			} else {
 				files[name] = idx
 			}
 		}
+
 		for dir := range dirs {
 			if _, ok := knownDirs[dir]; !ok {
 				if idx, ok := files[dir]; ok {

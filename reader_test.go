@@ -188,6 +188,7 @@ func TestOpenReader(t *testing.T) {
 
 		t.Run(table.name, func(t *testing.T) {
 			t.Parallel()
+
 			r, err := sevenzip.OpenReader(filepath.Join("testdata", table.file))
 			if err != nil {
 				assert.ErrorIs(t, err, table.err)
@@ -243,6 +244,7 @@ func TestOpenReaderWithPassword(t *testing.T) {
 
 		t.Run(table.name, func(t *testing.T) {
 			t.Parallel()
+
 			r, err := sevenzip.OpenReaderWithPassword(filepath.Join("testdata", table.file), table.password)
 			if err != nil {
 				t.Fatal(err)
