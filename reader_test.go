@@ -188,6 +188,7 @@ func TestOpenReader(t *testing.T) {
 
 		t.Run(table.name, func(t *testing.T) {
 			t.Parallel()
+
 			r, err := sevenzip.OpenReader(filepath.Join("testdata", table.file))
 			if err != nil {
 				assert.ErrorIs(t, err, table.err)
@@ -243,6 +244,7 @@ func TestOpenReaderWithPassword(t *testing.T) {
 
 		t.Run(table.name, func(t *testing.T) {
 			t.Parallel()
+
 			r, err := sevenzip.OpenReaderWithPassword(filepath.Join("testdata", table.file), table.password)
 			if err != nil {
 				t.Fatal(err)
@@ -362,13 +364,13 @@ func benchmarkArchiveNaiveParallel(b *testing.B, file string, workers int) {
 	}
 }
 
-func benchmarkArchive(b *testing.B, file string, optimised bool) {
+func benchmarkArchive(b *testing.B, file, password string, optimised bool) {
 	b.Helper()
 
 	h := crc32.NewIEEE()
 
 	for n := 0; n < b.N; n++ {
-		r, err := sevenzip.OpenReader(filepath.Join("testdata", file))
+		r, err := sevenzip.OpenReaderWithPassword(filepath.Join("testdata", file), password)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -382,56 +384,60 @@ func benchmarkArchive(b *testing.B, file string, optimised bool) {
 	}
 }
 
+func BenchmarkAES7z(b *testing.B) {
+	benchmarkArchive(b, "aes7z.7z", "password", true)
+}
+
 func BenchmarkBzip2(b *testing.B) {
-	benchmarkArchive(b, "bzip2.7z", true)
+	benchmarkArchive(b, "bzip2.7z", "", true)
 }
 
 func BenchmarkCopy(b *testing.B) {
-	benchmarkArchive(b, "copy.7z", true)
+	benchmarkArchive(b, "copy.7z", "", true)
 }
 
 func BenchmarkDeflate(b *testing.B) {
-	benchmarkArchive(b, "deflate.7z", true)
+	benchmarkArchive(b, "deflate.7z", "", true)
 }
 
 func BenchmarkDelta(b *testing.B) {
-	benchmarkArchive(b, "delta.7z", true)
+	benchmarkArchive(b, "delta.7z", "", true)
 }
 
 func BenchmarkLZMA(b *testing.B) {
-	benchmarkArchive(b, "lzma.7z", true)
+	benchmarkArchive(b, "lzma.7z", "", true)
 }
 
 func BenchmarkLZMA2(b *testing.B) {
-	benchmarkArchive(b, "lzma2.7z", true)
+	benchmarkArchive(b, "lzma2.7z", "", true)
 }
 
 func BenchmarkBCJ2(b *testing.B) {
-	benchmarkArchive(b, "bcj2.7z", true)
+	benchmarkArchive(b, "bcj2.7z", "", true)
 }
 
 func BenchmarkComplex(b *testing.B) {
-	benchmarkArchive(b, "lzma1900.7z", true)
+	benchmarkArchive(b, "lzma1900.7z", "", true)
 }
 
 func BenchmarkLZ4(b *testing.B) {
-	benchmarkArchive(b, "lz4.7z", true)
+	benchmarkArchive(b, "lz4.7z", "", true)
 }
 
 func BenchmarkBrotli(b *testing.B) {
-	benchmarkArchive(b, "brotli.7z", true)
+	benchmarkArchive(b, "brotli.7z", "", true)
 }
 
 func BenchmarkZstandard(b *testing.B) {
-	benchmarkArchive(b, "zstd.7z", true)
+	benchmarkArchive(b, "zstd.7z", "", true)
 }
 
 func BenchmarkNaiveReader(b *testing.B) {
-	benchmarkArchive(b, "lzma1900.7z", false)
+	benchmarkArchive(b, "lzma1900.7z", "", false)
 }
 
 func BenchmarkOptimisedReader(b *testing.B) {
-	benchmarkArchive(b, "lzma1900.7z", true)
+	benchmarkArchive(b, "lzma1900.7z", "", true)
 }
 
 func BenchmarkNaiveParallelReader(b *testing.B) {
@@ -447,17 +453,17 @@ func BenchmarkParallelReader(b *testing.B) {
 }
 
 func BenchmarkBCJ(b *testing.B) {
-	benchmarkArchive(b, "bcj.7z", true)
+	benchmarkArchive(b, "bcj.7z", "", true)
 }
 
 func BenchmarkPPC(b *testing.B) {
-	benchmarkArchive(b, "ppc.7z", true)
+	benchmarkArchive(b, "ppc.7z", "", true)
 }
 
 func BenchmarkARM(b *testing.B) {
-	benchmarkArchive(b, "arm.7z", true)
+	benchmarkArchive(b, "arm.7z", "", true)
 }
 
 func BenchmarkSPARC(b *testing.B) {
-	benchmarkArchive(b, "sparc.7z", true)
+	benchmarkArchive(b, "sparc.7z", "", true)
 }

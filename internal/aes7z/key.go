@@ -4,12 +4,47 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 
+	lru "github.com/hashicorp/golang-lru/v2"
+	"go4.org/syncutil"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 )
 
-func calculateKey(password string, cycles int, salt []byte) []byte {
+type cacheKey struct {
+	password string
+	cycles   int
+	salt     string // []byte isn't comparable
+}
+
+const cacheSize = 10
+
+//nolint:gochecknoglobals
+var (
+	once  syncutil.Once
+	cache *lru.Cache[cacheKey, []byte]
+)
+
+func calculateKey(password string, cycles int, salt []byte) ([]byte, error) {
+	if err := once.Do(func() (err error) {
+		cache, err = lru.New[cacheKey, []byte](cacheSize)
+
+		return
+	}); err != nil {
+		return nil, err
+	}
+
+	ck := cacheKey{
+		password: password,
+		cycles:   cycles,
+		salt:     hex.EncodeToString(salt),
+	}
+
+	if key, ok := cache.Get(ck); ok {
+		return key, nil
+	}
+
 	b := bytes.NewBuffer(salt)
 
 	// Convert password to UTF-16LE
@@ -30,5 +65,7 @@ func calculateKey(password string, cycles int, salt []byte) []byte {
 		copy(key, h.Sum(nil))
 	}
 
-	return key
+	_ = cache.Add(ck, key)
+
+	return key, nil
 }
