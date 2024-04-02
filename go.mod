@@ -23,3 +23,5 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/hashicorp/golang-lru/v2 => github.com/bodgit/golang-lru/v2 v2.0.0-20240402231653-73e2fffc225d
