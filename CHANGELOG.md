@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.1](https://github.com/bodgit/sevenzip/compare/v1.5.0...v1.5.1) (2024-04-05)
+
+
+### Performance Improvements
+
+* Add AES key caching ([#189](https://github.com/bodgit/sevenzip/issues/189)) ([3d794c2](https://github.com/bodgit/sevenzip/commit/3d794c26c683fe80def4496d49106679b868ae2e))
+* Don't use pools for streams with one file ([#194](https://github.com/bodgit/sevenzip/issues/194)) ([b4cfdcf](https://github.com/bodgit/sevenzip/commit/b4cfdcfe0a64380d64c112d41a870dc8c33c1274))
+
 ## [1.5.0](https://github.com/bodgit/sevenzip/compare/v1.4.5...v1.5.0) (2024-02-08)
 
 
