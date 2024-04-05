@@ -30,9 +30,6 @@ var (
 	errTooMuch  = errors.New("sevenzip: too much data")
 )
 
-//nolint:gochecknoglobals
-var newPool pool.Constructor = pool.NewPool
-
 // A Reader serves content from a 7-Zip archive.
 type Reader struct {
 	r     io.ReaderAt
@@ -422,18 +419,13 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 
 	z.si = header.streamsInfo
 
-	z.pool = make([]pool.Pooler, z.si.Folders())
-	for i := range z.pool {
-		if z.pool[i], err = newPool(); err != nil {
-			return err
-		}
-	}
-
 	// spew.Dump(header)
 
 	folder, offset := 0, int64(0)
 	z.File = make([]*File, 0, len(header.filesInfo.file))
 	j := 0
+
+	filesPerStream := make(map[int]int, z.si.Folders())
 
 	for _, fh := range header.filesInfo.file {
 		f := new(File)
@@ -450,6 +442,8 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 			// Make an exported copy of the folder index
 			f.Stream = f.folder
 
+			filesPerStream[f.folder]++
+
 			if f.folder != folder {
 				offset = 0
 			}
@@ -461,6 +455,21 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 		}
 
 		z.File = append(z.File, f)
+	}
+
+	// spew.Dump(filesPerStream)
+
+	z.pool = make([]pool.Pooler, z.si.Folders())
+	for i := range z.pool {
+		var newPool pool.Constructor = pool.NewNoopPool
+
+		if filesPerStream[i] > 1 {
+			newPool = pool.NewPool
+		}
+
+		if z.pool[i], err = newPool(); err != nil {
+			return err
+		}
 	}
 
 	return nil
