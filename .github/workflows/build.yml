@@ -39,7 +39,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@9d1e0624a798bb64f6c3cea93db47765312263dc # v3.7.1
+        uses: golangci/golangci-lint-action@23faadfdeb23a6f9e511beaba149bb123b5b145a # v3.7.1
         if: github.event_name == 'pull_request'
         with:
           only-new-issues: true
