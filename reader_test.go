@@ -105,6 +105,10 @@ func TestOpenReader(t *testing.T) {
 			file: "empty.7z",
 		},
 		{
+			name: "empty2",
+			file: "empty2.7z",
+		},
+		{
 			name: "bcj2",
 			file: "bcj2.7z",
 		},

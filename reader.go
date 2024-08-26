@@ -420,41 +420,42 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	z.si = header.streamsInfo
 
 	// spew.Dump(header)
-
-	folder, offset := 0, int64(0)
-	z.File = make([]*File, 0, len(header.filesInfo.file))
-	j := 0
-
 	filesPerStream := make(map[int]int, z.si.Folders())
 
-	for _, fh := range header.filesInfo.file {
-		f := new(File)
-		f.zip = z
-		f.FileHeader = fh
+	if header.filesInfo != nil {
+		folder, offset := 0, int64(0)
+		z.File = make([]*File, 0, len(header.filesInfo.file))
+		j := 0
 
-		if f.FileHeader.FileInfo().IsDir() && !strings.HasSuffix(f.FileHeader.Name, "/") {
-			f.FileHeader.Name += "/"
-		}
+		for _, fh := range header.filesInfo.file {
+			f := new(File)
+			f.zip = z
+			f.FileHeader = fh
 
-		if !fh.isEmptyStream && !fh.isEmptyFile {
-			f.folder, _ = header.streamsInfo.FileFolderAndSize(j)
-
-			// Make an exported copy of the folder index
-			f.Stream = f.folder
-
-			filesPerStream[f.folder]++
-
-			if f.folder != folder {
-				offset = 0
+			if f.FileHeader.FileInfo().IsDir() && !strings.HasSuffix(f.FileHeader.Name, "/") {
+				f.FileHeader.Name += "/"
 			}
 
-			f.offset = offset
-			offset += int64(f.UncompressedSize)
-			folder = f.folder
-			j++
-		}
+			if !fh.isEmptyStream && !fh.isEmptyFile {
+				f.folder, _ = header.streamsInfo.FileFolderAndSize(j)
 
-		z.File = append(z.File, f)
+				// Make an exported copy of the folder index
+				f.Stream = f.folder
+
+				filesPerStream[f.folder]++
+
+				if f.folder != folder {
+					offset = 0
+				}
+
+				f.offset = offset
+				offset += int64(f.UncompressedSize)
+				folder = f.folder
+				j++
+			}
+
+			z.File = append(z.File, f)
+		}
 	}
 
 	// spew.Dump(filesPerStream)
