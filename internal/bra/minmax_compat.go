@@ -2,6 +2,7 @@
 
 package bra
 
+//nolint:predeclared
 func min(x, y int) int {
 	if x < y {
 		return x
@@ -10,6 +11,7 @@ func min(x, y int) int {
 	return y
 }
 
+//nolint:predeclared
 func max(x, y int) int {
 	if x > y {
 		return x
