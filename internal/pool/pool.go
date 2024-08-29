@@ -11,8 +11,8 @@ import (
 
 // Pooler is the interface implemented by a pool.
 type Pooler interface {
-	Get(int64) (util.SizeReadSeekCloser, bool)
-	Put(int64, util.SizeReadSeekCloser) (bool, error)
+	Get(offset int64) (util.SizeReadSeekCloser, bool)
+	Put(offset int64, rc util.SizeReadSeekCloser) (bool, error)
 }
 
 // Constructor is the function prototype used to instantiate a pool.
