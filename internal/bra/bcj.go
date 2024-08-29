@@ -24,13 +24,13 @@ func (c *bcj) Convert(b []byte, encoding bool) int {
 	}
 
 	var (
-		pos  int
+		pos  uint32
 		mask = c.state & 7
 	)
 
 	for {
 		p := pos
-		for ; p < len(b)-bcjLookAhead; p++ {
+		for ; int(p) < len(b)-bcjLookAhead; p++ {
 			if b[p]&0xfe == 0xe8 {
 				break
 			}
@@ -39,23 +39,23 @@ func (c *bcj) Convert(b []byte, encoding bool) int {
 		d := p - pos
 		pos = p
 
-		if p >= len(b)-bcjLookAhead {
+		if int(p) >= len(b)-bcjLookAhead {
 			if d > 2 {
 				c.state = 0
 			} else {
 				c.state = mask >> d
 			}
 
-			c.ip += uint32(pos)
+			c.ip += pos
 
-			return pos
+			return int(pos)
 		}
 
 		if d > 2 {
 			mask = 0
 		} else {
 			mask >>= d
-			if mask != 0 && (mask > 4 || mask == 3 || test86MSByte(b[p+int(mask>>1)+1])) {
+			if mask != 0 && (mask > 4 || mask == 3 || test86MSByte(b[p+(mask>>1)+1])) {
 				mask = (mask >> 1) | 4
 				pos++
 
@@ -66,8 +66,8 @@ func (c *bcj) Convert(b []byte, encoding bool) int {
 		//nolint:nestif
 		if test86MSByte(b[p+4]) {
 			v := binary.LittleEndian.Uint32(b[p+1:])
-			cur := c.ip + uint32(c.Size()+pos)
-			pos += c.Size()
+			cur := c.ip + uint32(c.Size()) + pos //nolint:gosec
+			pos += uint32(c.Size())              //nolint:gosec
 
 			if encoding {
 				v += cur

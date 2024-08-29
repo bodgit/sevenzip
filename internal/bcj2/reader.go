@@ -49,7 +49,7 @@ type readCloser struct {
 	sd [256 + 2]uint
 
 	previous byte
-	written  uint64
+	written  uint32
 
 	buf *bytes.Buffer
 }
@@ -189,7 +189,7 @@ func (rc *readCloser) read() error {
 			return err
 		}
 
-		dest -= uint32(rc.written + 4)
+		dest -= rc.written + 4
 		_ = binary.Write(rc.buf, binary.LittleEndian, dest)
 
 		rc.previous = byte(dest >> 24)

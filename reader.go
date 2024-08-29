@@ -139,7 +139,7 @@ func (f *File) Open() (io.ReadCloser, error) {
 	return &fileReader{
 		rc: rc,
 		f:  f,
-		n:  int64(f.UncompressedSize),
+		n:  int64(f.UncompressedSize), //nolint:gosec
 	}, nil
 }
 
@@ -349,7 +349,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	}
 
 	// Seek over the streams
-	if z.end, err = sr.Seek(int64(start.Offset), io.SeekCurrent); err != nil {
+	if z.end, err = sr.Seek(int64(start.Offset), io.SeekCurrent); err != nil { //nolint:gosec
 		return err
 	}
 
@@ -359,7 +359,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	h.Reset()
 
 	// Bound bufio.Reader otherwise it can read trailing garbage which screws up the CRC check
-	br := bufio.NewReader(io.NewSectionReader(tra, z.end, int64(start.Size)))
+	br := bufio.NewReader(io.NewSectionReader(tra, z.end, int64(start.Size))) //nolint:gosec
 
 	id, err := br.ReadByte()
 	if err != nil {
@@ -449,7 +449,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 			}
 
 			f.offset = offset
-			offset += int64(f.UncompressedSize)
+			offset += int64(f.UncompressedSize) //nolint:gosec
 			folder = f.folder
 			j++
 		}

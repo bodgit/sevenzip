@@ -62,6 +62,7 @@ func calculateKey(password string, cycles int, salt []byte) ([]byte, error) {
 			_, _ = h.Write(b.Bytes())
 			_ = binary.Write(h, binary.LittleEndian, i)
 		}
+
 		copy(key, h.Sum(nil))
 	}
 

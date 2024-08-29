@@ -240,7 +240,7 @@ func readCoder(r util.Reader) (*coder, error) {
 		}
 
 		c.properties = make([]byte, size)
-		if n, err := r.Read(c.properties); err != nil || n != int(size) {
+		if n, err := r.Read(c.properties); err != nil || uint64(n) != size {
 			if err != nil {
 				return nil, fmt.Errorf("readCoder: Read error: %w", err)
 			}
@@ -605,7 +605,7 @@ func readNames(r util.Reader, count, length uint64) ([]string, error) {
 	}
 
 	utf16le := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
-	scanner := bufio.NewScanner(transform.NewReader(io.LimitReader(r, int64(length-1)), utf16le.NewDecoder()))
+	scanner := bufio.NewScanner(transform.NewReader(io.LimitReader(r, int64(length-1)), utf16le.NewDecoder())) //nolint:gosec,lll
 	scanner.Split(splitNull)
 
 	names, i := make([]string, 0, count), uint64(0)
@@ -765,7 +765,7 @@ func readFilesInfo(r util.Reader) (*filesInfo, error) {
 		case idStartPos:
 			return nil, errors.New("sevenzip: TODO idStartPos") //nolint:goerr113
 		case idDummy:
-			if _, err := io.CopyN(io.Discard, r, int64(length)); err != nil {
+			if _, err := io.CopyN(io.Discard, r, int64(length)); err != nil { //nolint:gosec
 				return nil, fmt.Errorf("readFilesInfo: CopyN error: %w", err)
 			}
 		default:

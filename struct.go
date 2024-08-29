@@ -18,7 +18,7 @@ var errAlgorithm = errors.New("sevenzip: unsupported compression algorithm")
 
 // CryptoReadCloser adds a Password method to decompressors.
 type CryptoReadCloser interface {
-	Password(string) error
+	Password(password string) error
 }
 
 type signatureHeader struct {
@@ -97,7 +97,7 @@ func (f *folder) coderReader(readers []io.ReadCloser, coder uint64, password str
 		}
 	}
 
-	return plumbing.LimitReadCloser(cr, int64(f.size[coder])), nil
+	return plumbing.LimitReadCloser(cr, int64(f.size[coder])), nil //nolint:gosec
 }
 
 type folderReadCloser struct {
@@ -118,7 +118,7 @@ func (rc *folderReadCloser) Seek(offset int64, whence int) (int64, error) {
 	case io.SeekStart:
 		newo = offset
 	case io.SeekCurrent:
-		newo = int64(rc.wc.Count()) + offset
+		newo = int64(rc.wc.Count()) + offset //nolint:gosec
 	case io.SeekEnd:
 		newo = rc.Size() + offset
 	default:
@@ -129,7 +129,7 @@ func (rc *folderReadCloser) Seek(offset int64, whence int) (int64, error) {
 		return 0, errors.New("negative seek")
 	}
 
-	if newo < int64(rc.wc.Count()) {
+	if uint64(newo) < rc.wc.Count() {
 		return 0, errors.New("cannot seek backwards")
 	}
 
@@ -137,7 +137,7 @@ func (rc *folderReadCloser) Seek(offset int64, whence int) (int64, error) {
 		return 0, errors.New("cannot seek beyond EOF")
 	}
 
-	if _, err := io.CopyN(io.Discard, rc, newo-int64(rc.wc.Count())); err != nil {
+	if _, err := io.CopyN(io.Discard, rc, newo-int64(rc.wc.Count())); err != nil { //nolint:gosec
 		return 0, err
 	}
 
@@ -232,7 +232,7 @@ func (si *streamsInfo) folderOffset(folder int) int64 {
 		k += si.unpackInfo.folder[i].packedStreams
 	}
 
-	return int64(si.packInfo.position + offset)
+	return int64(si.packInfo.position + offset) //nolint:gosec
 }
 
 //nolint:cyclop,funlen
@@ -249,7 +249,7 @@ func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) 
 	offset := int64(0)
 
 	for i, input := range f.packed {
-		size := int64(si.packInfo.size[packedOffset+i])
+		size := int64(si.packInfo.size[packedOffset+i]) //nolint:gosec
 		in[input] = util.NopCloser(bufio.NewReader(io.NewSectionReader(r, si.folderOffset(folder)+offset, size)))
 		offset += size
 	}
@@ -297,7 +297,7 @@ func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) 
 		return nil, 0, errors.New("expecting one unbound output stream")
 	}
 
-	fr := newFolderReadCloser(out[unbound[0]], int64(f.unpackSize()))
+	fr := newFolderReadCloser(out[unbound[0]], int64(f.unpackSize())) //nolint:gosec
 
 	if si.unpackInfo.digest != nil {
 		return fr, si.unpackInfo.digest[folder], nil
@@ -344,7 +344,7 @@ type headerFileInfo struct {
 }
 
 func (fi headerFileInfo) Name() string       { return path.Base(fi.fh.Name) }
-func (fi headerFileInfo) Size() int64        { return int64(fi.fh.UncompressedSize) }
+func (fi headerFileInfo) Size() int64        { return int64(fi.fh.UncompressedSize) } //nolint:gosec
 func (fi headerFileInfo) IsDir() bool        { return fi.Mode().IsDir() }
 func (fi headerFileInfo) ModTime() time.Time { return fi.fh.Modified.UTC() }
 func (fi headerFileInfo) Mode() fs.FileMode  { return fi.fh.Mode() }
