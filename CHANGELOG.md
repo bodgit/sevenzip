@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.2](https://github.com/bodgit/sevenzip/compare/v1.5.1...v1.5.2) (2024-08-29)
+
+
+### Bug Fixes
+
+* Avoid panic in Reader init (empty2.7z); header.filesInfo is nil. ([#252](https://github.com/bodgit/sevenzip/issues/252)) ([10d7550](https://github.com/bodgit/sevenzip/commit/10d75506fa01719e9e0f074c4e7b3c3b96f4233d))
+* Lint fixes ([#253](https://github.com/bodgit/sevenzip/issues/253)) ([c82d2e9](https://github.com/bodgit/sevenzip/commit/c82d2e90e52ae81797b0f790fabe90baf35bf581))
+
 ## [1.5.1](https://github.com/bodgit/sevenzip/compare/v1.5.0...v1.5.1) (2024-04-05)
 
 
