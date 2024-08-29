@@ -449,7 +449,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 				}
 
 				f.offset = offset
-        offset += int64(f.UncompressedSize) //nolint:gosec
+                                offset += int64(f.UncompressedSize) //nolint:gosec
 				folder = f.folder
 				j++
 			}
