@@ -14,7 +14,7 @@ require (
 	github.com/ulikunitz/xz v0.5.12
 	go4.org v0.0.0-20200411211856-f5505b9728dd
 	golang.org/x/sync v0.8.0
-	golang.org/x/text v0.17.0
+	golang.org/x/text v0.18.0
 )
 
 require (
