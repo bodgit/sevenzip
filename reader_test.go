@@ -15,12 +15,15 @@ import (
 	"github.com/bodgit/sevenzip"
 	"github.com/bodgit/sevenzip/internal/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 )
 
 func reader(r io.Reader) io.Reader {
 	return r
 }
+
+var errCRCMismatch = errors.New("CRC doesn't match")
 
 func extractFile(tb testing.TB, r io.Reader, h hash.Hash, f *sevenzip.File) error {
 	tb.Helper()
@@ -38,7 +41,7 @@ func extractFile(tb testing.TB, r io.Reader, h hash.Hash, f *sevenzip.File) erro
 	}
 
 	if !util.CRC32Equal(h.Sum(nil), f.CRC32) {
-		return errors.New("CRC doesn't match")
+		return errCRCMismatch
 	}
 
 	return nil
@@ -237,6 +240,16 @@ func TestOpenReaderWithPassword(t *testing.T) {
 			password: "password",
 		},
 		{
+			name:     "unencrypted headers compressed files",
+			file:     "t4.7z",
+			password: "password",
+		},
+		{
+			name:     "unencrypted headers uncompressed files",
+			file:     "t5.7z",
+			password: "password",
+		},
+		{
 			name:     "issue 75",
 			file:     "7zcracker.7z",
 			password: "876",
@@ -260,6 +273,53 @@ func TestOpenReaderWithPassword(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestOpenReaderWithWrongPassword(t *testing.T) {
+	t.Parallel()
+
+	t.Run("encrypted headers", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := sevenzip.OpenReaderWithPassword(filepath.Join("testdata", "t2.7z"), "notpassword")
+
+		var e *sevenzip.ReadError
+		if assert.ErrorAs(t, err, &e) {
+			assert.True(t, e.Encrypted)
+		}
+	})
+
+	t.Run("unencrypted headers compressed files", func(t *testing.T) {
+		t.Parallel()
+
+		r, err := sevenzip.OpenReaderWithPassword(filepath.Join("testdata", "t4.7z"), "notpassword")
+		require.NoError(t, err)
+
+		defer func() {
+			require.NoError(t, r.Close())
+		}()
+
+		err = extractArchive(t, r, -1, crc32.NewIEEE(), iotest.OneByteReader, true)
+
+		var e *sevenzip.ReadError
+		if assert.ErrorAs(t, err, &e) {
+			assert.True(t, e.Encrypted)
+		}
+	})
+
+	t.Run("unencrypted headers uncompressed files", func(t *testing.T) {
+		t.Parallel()
+
+		r, err := sevenzip.OpenReaderWithPassword(filepath.Join("testdata", "t5.7z"), "notpassword")
+		require.NoError(t, err)
+
+		defer func() {
+			require.NoError(t, r.Close())
+		}()
+
+		err = extractArchive(t, r, -1, crc32.NewIEEE(), iotest.OneByteReader, true)
+		assert.ErrorIs(t, err, errCRCMismatch)
+	})
 }
 
 func TestFS(t *testing.T) {

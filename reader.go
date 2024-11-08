@@ -30,6 +30,21 @@ var (
 	errTooMuch  = errors.New("sevenzip: too much data")
 )
 
+// ReadError is used to wrap read I/O errors.
+type ReadError struct {
+	// Encrypted is a hint that there is encryption involved.
+	Encrypted bool
+	Err       error
+}
+
+func (e ReadError) Error() string {
+	return fmt.Sprintf("sevenzip: read error: %v", e.Err)
+}
+
+func (e ReadError) Unwrap() error {
+	return e.Err
+}
+
 // A Reader serves content from a 7-Zip archive.
 type Reader struct {
 	r     io.ReaderAt
