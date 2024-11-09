@@ -80,31 +80,33 @@ func (f *folder) findOutBindPair(i uint64) *bindPair {
 	return nil
 }
 
-func (f *folder) coderReader(readers []io.ReadCloser, coder uint64, password string) (io.ReadCloser, error) {
+func (f *folder) coderReader(readers []io.ReadCloser, coder uint64, password string) (io.ReadCloser, bool, error) {
 	dcomp := decompressor(f.coder[coder].id)
 	if dcomp == nil {
-		return nil, errAlgorithm
+		return nil, false, errAlgorithm
 	}
 
 	cr, err := dcomp(f.coder[coder].properties, f.size[coder], readers)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
-	if crc, ok := cr.(CryptoReadCloser); ok {
+	crc, ok := cr.(CryptoReadCloser)
+	if ok {
 		if err = crc.Password(password); err != nil {
-			return nil, err
+			return nil, true, err
 		}
 	}
 
-	return plumbing.LimitReadCloser(cr, int64(f.size[coder])), nil //nolint:gosec
+	return plumbing.LimitReadCloser(cr, int64(f.size[coder])), ok, nil //nolint:gosec
 }
 
 type folderReadCloser struct {
 	io.ReadCloser
-	h    hash.Hash
-	wc   *plumbing.WriteCounter
-	size int64
+	h             hash.Hash
+	wc            *plumbing.WriteCounter
+	size          int64
+	hasEncryption bool
 }
 
 func (rc *folderReadCloser) Checksum() []byte {
@@ -148,12 +150,13 @@ func (rc *folderReadCloser) Size() int64 {
 	return rc.size
 }
 
-func newFolderReadCloser(rc io.ReadCloser, size int64) *folderReadCloser {
+func newFolderReadCloser(rc io.ReadCloser, size int64, hasEncryption bool) *folderReadCloser {
 	nrc := new(folderReadCloser)
 	nrc.h = crc32.NewIEEE()
 	nrc.wc = new(plumbing.WriteCounter)
 	nrc.ReadCloser = plumbing.TeeReadCloser(rc, io.MultiWriter(nrc.h, nrc.wc))
 	nrc.size = size
+	nrc.hasEncryption = hasEncryption
 
 	return nrc
 }
@@ -235,8 +238,8 @@ func (si *streamsInfo) folderOffset(folder int) int64 {
 	return int64(si.packInfo.position + offset) //nolint:gosec
 }
 
-//nolint:cyclop,funlen
-func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) (*folderReadCloser, uint32, error) {
+//nolint:cyclop,funlen,lll
+func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) (*folderReadCloser, uint32, bool, error) {
 	f := si.unpackInfo.folder[folder]
 	in := make([]io.ReadCloser, f.in)
 	out := make([]io.ReadCloser, f.out)
@@ -254,11 +257,14 @@ func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) 
 		offset += size
 	}
 
-	input, output := uint64(0), uint64(0)
+	var (
+		hasEncryption bool
+		input, output uint64
+	)
 
 	for i, c := range f.coder {
 		if c.out != 1 {
-			return nil, 0, errors.New("more than one output stream")
+			return nil, 0, hasEncryption, errors.New("more than one output stream")
 		}
 
 		for j := input; j < input+c.in; j++ {
@@ -268,17 +274,24 @@ func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) 
 
 			bp := f.findInBindPair(j)
 			if bp == nil || out[bp.out] == nil {
-				return nil, 0, errors.New("cannot find bound stream")
+				return nil, 0, hasEncryption, errors.New("cannot find bound stream")
 			}
 
 			in[j] = out[bp.out]
 		}
 
-		var err error
+		var (
+			isEncrypted bool
+			err         error
+		)
 
-		out[output], err = f.coderReader(in[input:input+c.in], uint64(i), password)
+		out[output], isEncrypted, err = f.coderReader(in[input:input+c.in], uint64(i), password) //nolint:gosec
 		if err != nil {
-			return nil, 0, err
+			return nil, 0, hasEncryption, err
+		}
+
+		if isEncrypted {
+			hasEncryption = true
 		}
 
 		input += c.in
@@ -294,16 +307,16 @@ func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) 
 	}
 
 	if len(unbound) != 1 || out[unbound[0]] == nil {
-		return nil, 0, errors.New("expecting one unbound output stream")
+		return nil, 0, hasEncryption, errors.New("expecting one unbound output stream")
 	}
 
-	fr := newFolderReadCloser(out[unbound[0]], int64(f.unpackSize())) //nolint:gosec
+	fr := newFolderReadCloser(out[unbound[0]], int64(f.unpackSize()), hasEncryption) //nolint:gosec
 
 	if si.unpackInfo.digest != nil {
-		return fr, si.unpackInfo.digest[folder], nil
+		return fr, si.unpackInfo.digest[folder], hasEncryption, nil
 	}
 
-	return fr, 0, nil
+	return fr, 0, hasEncryption, nil
 }
 
 type filesInfo struct {
