@@ -84,7 +84,7 @@ func (fr *fileReader) Stat() (fs.FileInfo, error) {
 	return headerFileInfo{&fr.f.FileHeader}, nil
 }
 
-func (fr *fileReader) Read(p []byte) (n int, err error) {
+func (fr *fileReader) Read(p []byte) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
@@ -97,10 +97,22 @@ func (fr *fileReader) Read(p []byte) (n int, err error) {
 		p = p[0:fr.n]
 	}
 
-	n, err = fr.rc.Read(p)
+	n, err := fr.rc.Read(p)
 	fr.n -= int64(n)
 
-	return
+	if err != nil && !errors.Is(err, io.EOF) {
+		e := &ReadError{
+			Err: err,
+		}
+
+		if frc, ok := fr.rc.(*folderReadCloser); ok {
+			e.Encrypted = frc.hasEncryption
+		}
+
+		return n, e
+	}
+
+	return n, err
 }
 
 func (fr *fileReader) Close() error {
@@ -137,18 +149,32 @@ func (f *File) Open() (io.ReadCloser, error) {
 		return io.NopCloser(bytes.NewReader(nil)), nil
 	}
 
-	var err error
-
 	rc, _ := f.zip.pool[f.folder].Get(f.offset)
 	if rc == nil {
-		rc, _, err = f.zip.folderReader(f.zip.si, f.folder)
+		var (
+			encrypted bool
+			err       error
+		)
+
+		rc, _, encrypted, err = f.zip.folderReader(f.zip.si, f.folder)
 		if err != nil {
-			return nil, err
+			return nil, &ReadError{
+				Encrypted: encrypted,
+				Err:       err,
+			}
 		}
 	}
 
-	if _, err = rc.Seek(f.offset, io.SeekStart); err != nil {
-		return nil, err
+	if _, err := rc.Seek(f.offset, io.SeekStart); err != nil {
+		e := &ReadError{
+			Err: err,
+		}
+
+		if fr, ok := rc.(*folderReadCloser); ok {
+			e.Encrypted = fr.hasEncryption
+		}
+
+		return nil, e
 	}
 
 	return &fileReader{
@@ -264,7 +290,7 @@ func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
 	return NewReaderWithPassword(r, size, "")
 }
 
-func (z *Reader) folderReader(si *streamsInfo, f int) (*folderReadCloser, uint32, error) {
+func (z *Reader) folderReader(si *streamsInfo, f int) (*folderReadCloser, uint32, bool, error) {
 	// Create a SectionReader covering all of the streams data
 	return si.FolderReader(io.NewSectionReader(z.r, z.start, z.end-z.start), f, z.p)
 }
@@ -417,14 +443,20 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 			return errors.New("sevenzip: expected only one folder in header stream")
 		}
 
-		fr, crc, err := z.folderReader(streamsInfo, 0)
+		fr, crc, encrypted, err := z.folderReader(streamsInfo, 0)
 		if err != nil {
-			return err
+			return &ReadError{
+				Encrypted: encrypted,
+				Err:       err,
+			}
 		}
 		defer fr.Close()
 
 		if header, err = readEncodedHeader(util.ByteReadCloser(fr)); err != nil {
-			return err
+			return &ReadError{
+				Encrypted: fr.hasEncryption,
+				Err:       err,
+			}
 		}
 
 		if crc != 0 && !util.CRC32Equal(fr.Checksum(), crc) {
