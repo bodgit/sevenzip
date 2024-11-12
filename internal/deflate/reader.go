@@ -1,3 +1,4 @@
+// Package deflate implements the Deflate decompressor.
 package deflate
 
 import (

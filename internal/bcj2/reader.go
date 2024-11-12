@@ -1,3 +1,4 @@
+// Package bcj2 implements the BCJ2 filter for x86 binaries.
 package bcj2
 
 import (

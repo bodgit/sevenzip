@@ -1,3 +1,4 @@
+// Package util implements various utility types and interfaces.
 package util
 
 import "io"

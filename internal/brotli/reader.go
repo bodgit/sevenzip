@@ -1,3 +1,4 @@
+// Package brotli implements the Brotli decompressor.
 package brotli
 
 import (

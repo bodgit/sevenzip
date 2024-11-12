@@ -1,3 +1,4 @@
+// Package lzma2 implements the LZMA2 decompressor.
 package lzma2
 
 import (

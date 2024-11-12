@@ -1,3 +1,4 @@
+// Package lz4 implements the LZ4 decompressor.
 package lz4
 
 import (

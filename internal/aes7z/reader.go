@@ -1,3 +1,4 @@
+// Package aes7z implements the 7-zip AES decryption.
 package aes7z
 
 import (

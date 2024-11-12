@@ -1,3 +1,4 @@
+// Package pool implements the reader pooling.
 package pool
 
 import (

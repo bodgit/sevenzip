@@ -211,7 +211,7 @@ func (si *streamsInfo) FileFolderAndSize(file int) (int, uint64) {
 	if si.subStreamsInfo != nil {
 		for folder, streams = range si.subStreamsInfo.streams {
 			total += streams
-			if uint64(file) < total {
+			if uint64(file) < total { //nolint:gosec
 				break
 			}
 		}
