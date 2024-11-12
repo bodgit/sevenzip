@@ -1,4 +1,6 @@
 ---
+issues:
+  exclude-use-default: false
 linters:
   disable-all: true
   enable:

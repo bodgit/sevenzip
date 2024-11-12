@@ -1,3 +1,4 @@
+// Package bzip2 implements the Bzip2 decompressor.
 package bzip2
 
 import (

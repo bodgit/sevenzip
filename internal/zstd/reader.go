@@ -1,3 +1,4 @@
+// Package zstd implements the Zstandard decompressor.
 package zstd
 
 import (

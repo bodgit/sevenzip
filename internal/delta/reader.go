@@ -1,3 +1,4 @@
+// Package delta implements the Delta filter.
 package delta
 
 import (

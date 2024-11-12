@@ -240,7 +240,7 @@ func readCoder(r util.Reader) (*coder, error) {
 		}
 
 		c.properties = make([]byte, size)
-		if n, err := r.Read(c.properties); err != nil || uint64(n) != size {
+		if n, err := r.Read(c.properties); err != nil || uint64(n) != size { //nolint:gosec
 			if err != nil {
 				return nil, fmt.Errorf("readCoder: Read error: %w", err)
 			}
