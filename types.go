@@ -450,6 +450,10 @@ func readSubStreamsInfo(r util.Reader, folder []*folder) (*subStreamsInfo, error
 				k++
 			}
 
+			if s.streams[i] == 0 {
+				continue
+			}
+
 			s.size[k] = folder[i].unpackSize() - total
 			k++
 		}
