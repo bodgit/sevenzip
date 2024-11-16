@@ -1,3 +1,4 @@
+// Package sevenzip provides read access to 7-zip archives.
 package sevenzip
 
 import (
@@ -30,6 +31,21 @@ var (
 	errTooMuch  = errors.New("sevenzip: too much data")
 )
 
+// ReadError is used to wrap read I/O errors.
+type ReadError struct {
+	// Encrypted is a hint that there is encryption involved.
+	Encrypted bool
+	Err       error
+}
+
+func (e ReadError) Error() string {
+	return fmt.Sprintf("sevenzip: read error: %v", e.Err)
+}
+
+func (e ReadError) Unwrap() error {
+	return e.Err
+}
+
 // A Reader serves content from a 7-Zip archive.
 type Reader struct {
 	r     io.ReaderAt
@@ -44,14 +60,15 @@ type Reader struct {
 	fileList     []fileListEntry
 }
 
-// A ReadCloser is a Reader that must be closed when no longer needed.
+// A ReadCloser is a [Reader] that must be closed when no longer needed.
 type ReadCloser struct {
 	f []*os.File
 	Reader
 }
 
 // A File is a single file in a 7-Zip archive. The file information is in the
-// embedded FileHeader. The file content can be accessed by calling Open.
+// embedded [FileHeader]. The file content can be accessed by calling
+// [File.Open].
 type File struct {
 	FileHeader
 	zip    *Reader
@@ -69,7 +86,7 @@ func (fr *fileReader) Stat() (fs.FileInfo, error) {
 	return headerFileInfo{&fr.f.FileHeader}, nil
 }
 
-func (fr *fileReader) Read(p []byte) (n int, err error) {
+func (fr *fileReader) Read(p []byte) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
@@ -82,10 +99,22 @@ func (fr *fileReader) Read(p []byte) (n int, err error) {
 		p = p[0:fr.n]
 	}
 
-	n, err = fr.rc.Read(p)
+	n, err := fr.rc.Read(p)
 	fr.n -= int64(n)
 
-	return
+	if err != nil && !errors.Is(err, io.EOF) {
+		e := &ReadError{
+			Err: err,
+		}
+
+		if frc, ok := fr.rc.(*folderReadCloser); ok {
+			e.Encrypted = frc.hasEncryption
+		}
+
+		return n, e
+	}
+
+	return n, err
 }
 
 func (fr *fileReader) Close() error {
@@ -114,26 +143,40 @@ func (fr *fileReader) Close() error {
 	return nil
 }
 
-// Open returns an io.ReadCloser that provides access to the File's contents.
-// Multiple files may be read concurrently.
+// Open returns an [io.ReadCloser] that provides access to the [File]'s
+// contents. Multiple files may be read concurrently.
 func (f *File) Open() (io.ReadCloser, error) {
 	if f.FileHeader.isEmptyStream || f.FileHeader.isEmptyFile {
 		// Return empty reader for directory or empty file
 		return io.NopCloser(bytes.NewReader(nil)), nil
 	}
 
-	var err error
-
 	rc, _ := f.zip.pool[f.folder].Get(f.offset)
 	if rc == nil {
-		rc, _, err = f.zip.folderReader(f.zip.si, f.folder)
+		var (
+			encrypted bool
+			err       error
+		)
+
+		rc, _, encrypted, err = f.zip.folderReader(f.zip.si, f.folder)
 		if err != nil {
-			return nil, err
+			return nil, &ReadError{
+				Encrypted: encrypted,
+				Err:       err,
+			}
 		}
 	}
 
-	if _, err = rc.Seek(f.offset, io.SeekStart); err != nil {
-		return nil, err
+	if _, err := rc.Seek(f.offset, io.SeekStart); err != nil {
+		e := &ReadError{
+			Err: err,
+		}
+
+		if fr, ok := rc.(*folderReadCloser); ok {
+			e.Encrypted = fr.hasEncryption
+		}
+
+		return nil, e
 	}
 
 	return &fileReader{
@@ -144,13 +187,13 @@ func (f *File) Open() (io.ReadCloser, error) {
 }
 
 // OpenReaderWithPassword will open the 7-zip file specified by name using
-// password as the basis of the decryption key and return a ReadCloser. If
+// password as the basis of the decryption key and return a [*ReadCloser]. If
 // name has a ".001" suffix it is assumed there are multiple volumes and each
 // sequential volume will be opened.
 //
 //nolint:cyclop,funlen
 func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
-	f, err := os.Open(name)
+	f, err := os.Open(filepath.Clean(name))
 	if err != nil {
 		return nil, err
 	}
@@ -219,15 +262,15 @@ func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
 }
 
 // OpenReader will open the 7-zip file specified by name and return a
-// ReadCloser. If name has a ".001" suffix it is assumed there are multiple
+// [*ReadCloser]. If name has a ".001" suffix it is assumed there are multiple
 // volumes and each sequential volume will be opened.
 func OpenReader(name string) (*ReadCloser, error) {
 	return OpenReaderWithPassword(name, "")
 }
 
-// NewReaderWithPassword returns a new Reader reading from r using password as
-// the basis of the decryption key, which is assumed to have the given size in
-// bytes.
+// NewReaderWithPassword returns a new [*Reader] reading from r using password
+// as the basis of the decryption key, which is assumed to have the given size
+// in bytes.
 func NewReaderWithPassword(r io.ReaderAt, size int64, password string) (*Reader, error) {
 	if size < 0 {
 		return nil, errors.New("sevenzip: size cannot be negative")
@@ -243,13 +286,13 @@ func NewReaderWithPassword(r io.ReaderAt, size int64, password string) (*Reader,
 	return zr, nil
 }
 
-// NewReader returns a new Reader reading from r, which is assumed to have the
-// given size in bytes.
+// NewReader returns a new [*Reader] reading from r, which is assumed to have
+// the given size in bytes.
 func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
 	return NewReaderWithPassword(r, size, "")
 }
 
-func (z *Reader) folderReader(si *streamsInfo, f int) (*folderReadCloser, uint32, error) {
+func (z *Reader) folderReader(si *streamsInfo, f int) (*folderReadCloser, uint32, bool, error) {
 	// Create a SectionReader covering all of the streams data
 	return si.FolderReader(io.NewSectionReader(z.r, z.start, z.end-z.start), f, z.p)
 }
@@ -293,14 +336,17 @@ func findSignature(r io.ReaderAt, search []byte) ([]int64, error) {
 	return offsets, nil
 }
 
-//nolint:cyclop,funlen,gocognit,gocyclo
-func (z *Reader) init(r io.ReaderAt, size int64) error {
+//nolint:cyclop,funlen,gocognit,gocyclo,maintidx
+func (z *Reader) init(r io.ReaderAt, size int64) (err error) {
 	h := crc32.NewIEEE()
 	tra := plumbing.TeeReaderAt(r, h)
 
-	signature := []byte{'7', 'z', 0xbc, 0xaf, 0x27, 0x1c}
+	var (
+		signature = []byte{'7', 'z', 0xbc, 0xaf, 0x27, 0x1c}
+		offsets   []int64
+	)
 
-	offsets, err := findSignature(r, signature)
+	offsets, err = findSignature(r, signature)
 	if err != nil {
 		return err
 	}
@@ -361,15 +407,15 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	// Bound bufio.Reader otherwise it can read trailing garbage which screws up the CRC check
 	br := bufio.NewReader(io.NewSectionReader(tra, z.end, int64(start.Size))) //nolint:gosec
 
-	id, err := br.ReadByte()
-	if err != nil {
-		return err
-	}
-
 	var (
+		id          byte
 		header      *header
 		streamsInfo *streamsInfo
 	)
+
+	if id, err = br.ReadByte(); err != nil {
+		return err
+	}
 
 	switch id {
 	case idHeader:
@@ -402,14 +448,29 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 			return errors.New("sevenzip: expected only one folder in header stream")
 		}
 
-		fr, crc, err := z.folderReader(streamsInfo, 0)
+		var (
+			fr        *folderReadCloser
+			crc       uint32
+			encrypted bool
+		)
+
+		fr, crc, encrypted, err = z.folderReader(streamsInfo, 0)
 		if err != nil {
-			return err
+			return &ReadError{
+				Encrypted: encrypted,
+				Err:       err,
+			}
 		}
-		defer fr.Close()
+
+		defer func() {
+			err = multierror.Append(err, fr.Close()).ErrorOrNil()
+		}()
 
 		if header, err = readEncodedHeader(util.ByteReadCloser(fr)); err != nil {
-			return err
+			return &ReadError{
+				Encrypted: fr.hasEncryption,
+				Err:       err,
+			}
 		}
 
 		if crc != 0 && !util.CRC32Equal(fr.Checksum(), crc) {
@@ -476,7 +537,8 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	return nil
 }
 
-// Volumes returns the list of volumes that have been opened as part of the current archive.
+// Volumes returns the list of volumes that have been opened as part of the
+// current archive.
 func (rc *ReadCloser) Volumes() []string {
 	volumes := make([]string, len(rc.f))
 	for idx, f := range rc.f {
@@ -628,7 +690,7 @@ func fileEntryLess(x, y string) bool {
 }
 
 // Open opens the named file in the 7-zip archive, using the semantics of
-// fs.FS.Open: paths are always slash separated, with no leading / or ../
+// [fs.FS.Open]: paths are always slash separated, with no leading / or ../
 // elements.
 func (z *Reader) Open(name string) (fs.File, error) {
 	z.initFileList()
