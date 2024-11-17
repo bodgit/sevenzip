@@ -33,7 +33,7 @@ func extractFile(tb testing.TB, r io.Reader, h hash.Hash, f *sevenzip.File) erro
 	h.Reset()
 
 	if _, err := io.Copy(h, r); err != nil {
-		return err
+		return fmt.Errorf("error extracting file: %w", err)
 	}
 
 	if f.UncompressedSize > 0 && f.CRC32 == 0 {
@@ -62,7 +62,7 @@ func extractArchive(tb testing.TB, r *sevenzip.ReadCloser, stream int, h hash.Ha
 
 		rc, err = f.Open()
 		if err != nil {
-			return err
+			return fmt.Errorf("error opening file: %w", err)
 		}
 
 		defer func() {
@@ -75,7 +75,7 @@ func extractArchive(tb testing.TB, r *sevenzip.ReadCloser, stream int, h hash.Ha
 
 		if optimised {
 			if err = rc.Close(); err != nil {
-				return err
+				return fmt.Errorf("error closing: %w", err)
 			}
 		}
 	}
@@ -463,7 +463,7 @@ func benchmarkArchiveNaiveParallel(b *testing.B, file string, workers int) {
 
 				rc, err = f.Open()
 				if err != nil {
-					return err
+					return fmt.Errorf("error opening file: %w", err)
 				}
 
 				defer func() {

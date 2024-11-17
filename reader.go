@@ -26,9 +26,11 @@ import (
 )
 
 var (
-	errFormat   = errors.New("sevenzip: not a valid 7-zip file")
-	errChecksum = errors.New("sevenzip: checksum error")
-	errTooMuch  = errors.New("sevenzip: too much data")
+	errFormat          = errors.New("sevenzip: not a valid 7-zip file")
+	errChecksum        = errors.New("sevenzip: checksum error")
+	errTooMuch         = errors.New("sevenzip: too much data")
+	errNegativeSize    = errors.New("sevenzip: size cannot be negative")
+	errOneHeaderStream = errors.New("sevenzip: expected only one folder in header stream")
 )
 
 // ReadError is used to wrap read I/O errors.
@@ -114,7 +116,7 @@ func (fr *fileReader) Read(p []byte) (int, error) {
 		return n, e
 	}
 
-	return n, err
+	return n, err //nolint:wrapcheck
 }
 
 func (fr *fileReader) Close() error {
@@ -124,17 +126,17 @@ func (fr *fileReader) Close() error {
 
 	offset, err := fr.rc.Seek(0, io.SeekCurrent)
 	if err != nil {
-		return err
+		return fmt.Errorf("sevenzip: error seeking current position: %w", err)
 	}
 
 	if offset == fr.rc.Size() { // EOF reached
 		if err := fr.rc.Close(); err != nil {
-			return err
+			return fmt.Errorf("sevenzip: error closing: %w", err)
 		}
 	} else {
 		f := fr.f
 		if _, err := f.zip.pool[f.folder].Put(offset, fr.rc); err != nil {
-			return err
+			return fmt.Errorf("sevenzip: error adding to pool: %w", err)
 		}
 	}
 
@@ -195,14 +197,14 @@ func (f *File) Open() (io.ReadCloser, error) {
 func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
 	f, err := os.Open(filepath.Clean(name))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("sevenzip: error opening: %w", err)
 	}
 
 	info, err := f.Stat()
 	if err != nil {
 		err = multierror.Append(err, f.Close())
 
-		return nil, err
+		return nil, fmt.Errorf("sevenzip: error retrieving file info: %w", err)
 	}
 
 	var reader io.ReaderAt = f
@@ -224,7 +226,7 @@ func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
 					err = multierror.Append(err, file.Close())
 				}
 
-				return nil, err
+				return nil, fmt.Errorf("sevenzip: error opening: %w", err)
 			}
 
 			files = append(files, f)
@@ -235,7 +237,7 @@ func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
 					err = multierror.Append(err, file.Close())
 				}
 
-				return nil, err
+				return nil, fmt.Errorf("sevenzip: error retrieving file info: %w", err)
 			}
 
 			sr = append(sr, io.NewSectionReader(f, 0, info.Size()))
@@ -253,7 +255,7 @@ func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
 			err = multierror.Append(err, file.Close())
 		}
 
-		return nil, err
+		return nil, fmt.Errorf("sevenzip: error initialising: %w", err)
 	}
 
 	r.f = files
@@ -273,7 +275,7 @@ func OpenReader(name string) (*ReadCloser, error) {
 // in bytes.
 func NewReaderWithPassword(r io.ReaderAt, size int64, password string) (*Reader, error) {
 	if size < 0 {
-		return nil, errors.New("sevenzip: size cannot be negative")
+		return nil, errNegativeSize
 	}
 
 	zr := new(Reader)
@@ -329,7 +331,7 @@ func findSignature(r io.ReaderAt, search []byte) ([]int64, error) {
 				break
 			}
 
-			return nil, err
+			return nil, fmt.Errorf("sevenzip: error reading chunk: %w", err)
 		}
 	}
 
@@ -366,7 +368,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) (err error) {
 
 		var sh signatureHeader
 		if err = binary.Read(sr, binary.LittleEndian, &sh); err != nil {
-			return err
+			return fmt.Errorf("sevenzip: error reading signature header: %w", err)
 		}
 
 		z.r = r
@@ -374,7 +376,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) (err error) {
 		h.Reset()
 
 		if err = binary.Read(sr, binary.LittleEndian, &start); err != nil {
-			return err
+			return fmt.Errorf("sevenzip: error reading start header: %w", err)
 		}
 
 		// CRC of the start header should match
@@ -391,12 +393,12 @@ func (z *Reader) init(r io.ReaderAt, size int64) (err error) {
 
 	// Work out where we are in the file (32, avoiding magic numbers)
 	if z.start, err = sr.Seek(0, io.SeekCurrent); err != nil {
-		return err
+		return fmt.Errorf("sevenzip: error seeking current position: %w", err)
 	}
 
 	// Seek over the streams
 	if z.end, err = sr.Seek(int64(start.Offset), io.SeekCurrent); err != nil { //nolint:gosec
-		return err
+		return fmt.Errorf("sevenzip: error seeking over streams: %w", err)
 	}
 
 	z.start += off
@@ -414,7 +416,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) (err error) {
 	)
 
 	if id, err = br.ReadByte(); err != nil {
-		return err
+		return fmt.Errorf("sevenzip: error reading header id: %w", err)
 	}
 
 	switch id {
@@ -445,7 +447,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) (err error) {
 	// to decode it
 	if streamsInfo != nil {
 		if streamsInfo.Folders() != 1 {
-			return errors.New("sevenzip: expected only one folder in header stream")
+			return errOneHeaderStream
 		}
 
 		var (
@@ -549,13 +551,16 @@ func (rc *ReadCloser) Volumes() []string {
 }
 
 // Close closes the 7-zip file or volumes, rendering them unusable for I/O.
-func (rc *ReadCloser) Close() error {
-	var err *multierror.Error
+func (rc *ReadCloser) Close() (err error) {
 	for _, f := range rc.f {
-		err = multierror.Append(err, f.Close())
+		err = multierror.Append(err, f.Close()).ErrorOrNil()
 	}
 
-	return err.ErrorOrNil()
+	if err != nil {
+		err = fmt.Errorf("sevenzip: error closing: %w", err)
+	}
+
+	return err
 }
 
 type fileListEntry struct {
@@ -572,7 +577,7 @@ type fileInfoDirEntry interface {
 
 func (e *fileListEntry) stat() (fileInfoDirEntry, error) {
 	if e.isDup {
-		return nil, errors.New(e.name + ": duplicate entries in 7-zip file")
+		return nil, errors.New(e.name + ": duplicate entries in 7-zip file") //nolint:err113
 	}
 
 	if !e.isDir {
@@ -787,8 +792,10 @@ type openDir struct {
 func (d *openDir) Close() error               { return nil }
 func (d *openDir) Stat() (fs.FileInfo, error) { return d.e.stat() }
 
+var errIsDirectory = errors.New("is a directory")
+
 func (d *openDir) Read([]byte) (int, error) {
-	return 0, &fs.PathError{Op: "read", Path: d.e.name, Err: errors.New("is a directory")}
+	return 0, &fs.PathError{Op: "read", Path: d.e.name, Err: errIsDirectory}
 }
 
 func (d *openDir) ReadDir(count int) ([]fs.DirEntry, error) {

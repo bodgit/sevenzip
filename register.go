@@ -24,12 +24,16 @@ import (
 // one io.ReadCloser's providing the stream(s) of bytes.
 type Decompressor func([]byte, uint64, []io.ReadCloser) (io.ReadCloser, error)
 
-//nolint:gochecknoglobals
-var decompressors sync.Map
+var (
+	//nolint:gochecknoglobals
+	decompressors sync.Map
+
+	errNeedOneReader = errors.New("copy: need exactly one reader")
+)
 
 func newCopyReader(_ []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
 	if len(readers) != 1 {
-		return nil, errors.New("sevenzip: need exactly one reader")
+		return nil, errNeedOneReader
 	}
 	// just return the passed io.ReadCloser)
 	return readers[0], nil

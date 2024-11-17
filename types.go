@@ -46,9 +46,10 @@ const (
 )
 
 var (
-	errIncompleteRead    = errors.New("sevenzip: incomplete read")
-	errUnexpectedID      = errors.New("sevenzip: unexpected id")
-	errMissingUnpackInfo = errors.New("sevenzip: missing unpack info")
+	errIncompleteRead         = errors.New("sevenzip: incomplete read")
+	errUnexpectedID           = errors.New("sevenzip: unexpected id")
+	errMissingUnpackInfo      = errors.New("sevenzip: missing unpack info")
+	errWrongNumberOfFilenames = errors.New("sevenzip: wrong number of filenames")
 )
 
 func readUint64(r io.ByteReader) (uint64, error) {
@@ -619,7 +620,7 @@ func readNames(r util.Reader, count, length uint64) ([]string, error) {
 	}
 
 	if i != count {
-		return nil, errors.New("sevenzip: wrong number of filenames")
+		return nil, errWrongNumberOfFilenames
 	}
 
 	return names, nil

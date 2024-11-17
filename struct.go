@@ -3,6 +3,7 @@ package sevenzip
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"hash"
 	"hash/crc32"
 	"io"
@@ -14,7 +15,16 @@ import (
 	"github.com/bodgit/sevenzip/internal/util"
 )
 
-var errAlgorithm = errors.New("sevenzip: unsupported compression algorithm")
+var (
+	errAlgorithm             = errors.New("sevenzip: unsupported compression algorithm")
+	errInvalidWhence         = errors.New("invalid whence")
+	errNegativeSeek          = errors.New("negative seek")
+	errSeekBackwards         = errors.New("cannot seek backwards")
+	errSeekEOF               = errors.New("cannot seek beyond EOF")
+	errMultipleOutputStreams = errors.New("more than one output stream")
+	errNoBoundStream         = errors.New("cannot find bound stream")
+	errNoUnboundStream       = errors.New("expecting one unbound output stream")
+)
 
 // CryptoReadCloser adds a Password method to decompressors.
 type CryptoReadCloser interface {
@@ -94,7 +104,7 @@ func (f *folder) coderReader(readers []io.ReadCloser, coder uint64, password str
 	crc, ok := cr.(CryptoReadCloser)
 	if ok {
 		if err = crc.Password(password); err != nil {
-			return nil, true, err
+			return nil, true, fmt.Errorf("sevenzip: error setting password: %w", err)
 		}
 	}
 
@@ -124,23 +134,23 @@ func (rc *folderReadCloser) Seek(offset int64, whence int) (int64, error) {
 	case io.SeekEnd:
 		newo = rc.Size() + offset
 	default:
-		return 0, errors.New("invalid whence")
+		return 0, errInvalidWhence
 	}
 
 	if newo < 0 {
-		return 0, errors.New("negative seek")
+		return 0, errNegativeSeek
 	}
 
 	if uint64(newo) < rc.wc.Count() {
-		return 0, errors.New("cannot seek backwards")
+		return 0, errSeekBackwards
 	}
 
 	if newo > rc.Size() {
-		return 0, errors.New("cannot seek beyond EOF")
+		return 0, errSeekEOF
 	}
 
 	if _, err := io.CopyN(io.Discard, rc, newo-int64(rc.wc.Count())); err != nil { //nolint:gosec
-		return 0, err
+		return 0, fmt.Errorf("sevenzip: error seeking: %w", err)
 	}
 
 	return newo, nil
@@ -264,7 +274,7 @@ func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) 
 
 	for i, c := range f.coder {
 		if c.out != 1 {
-			return nil, 0, hasEncryption, errors.New("more than one output stream")
+			return nil, 0, hasEncryption, errMultipleOutputStreams
 		}
 
 		for j := input; j < input+c.in; j++ {
@@ -274,7 +284,7 @@ func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) 
 
 			bp := f.findInBindPair(j)
 			if bp == nil || out[bp.out] == nil {
-				return nil, 0, hasEncryption, errors.New("cannot find bound stream")
+				return nil, 0, hasEncryption, errNoBoundStream
 			}
 
 			in[j] = out[bp.out]
@@ -307,7 +317,7 @@ func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) 
 	}
 
 	if len(unbound) != 1 || out[unbound[0]] == nil {
-		return nil, 0, hasEncryption, errors.New("expecting one unbound output stream")
+		return nil, 0, hasEncryption, errNoUnboundStream
 	}
 
 	fr := newFolderReadCloser(out[unbound[0]], int64(f.unpackSize()), hasEncryption) //nolint:gosec
