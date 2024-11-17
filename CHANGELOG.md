@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/bodgit/sevenzip/compare/v1.5.2...v1.6.0) (2024-11-17)
+
+
+### Features
+
+* Add ReadError to wrap I/O errors ([#278](https://github.com/bodgit/sevenzip/issues/278)) ([d38d0aa](https://github.com/bodgit/sevenzip/commit/d38d0aaf74e642d9004b8fee09ab93befeffd174))
+
 ## [1.5.2](https://github.com/bodgit/sevenzip/compare/v1.5.1...v1.5.2) (2024-08-29)
 
 
