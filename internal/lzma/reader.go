@@ -1,9 +1,11 @@
+// Package lzma implements the LZMA decompressor.
 package lzma
 
 import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/ulikunitz/xz/lzma"
@@ -14,28 +16,42 @@ type readCloser struct {
 	r io.Reader
 }
 
+var (
+	errAlreadyClosed = errors.New("lzma: already closed")
+	errNeedOneReader = errors.New("lzma: need exactly one reader")
+)
+
 func (rc *readCloser) Close() error {
-	var err error
-	if rc.c != nil {
-		err = rc.c.Close()
-		rc.c, rc.r = nil, nil
+	if rc.c == nil || rc.r == nil {
+		return errAlreadyClosed
 	}
 
-	return err
+	if err := rc.c.Close(); err != nil {
+		return fmt.Errorf("lzma: error closing: %w", err)
+	}
+
+	rc.c, rc.r = nil, nil
+
+	return nil
 }
 
 func (rc *readCloser) Read(p []byte) (int, error) {
 	if rc.r == nil {
-		return 0, errors.New("lzma: Read after Close")
+		return 0, errAlreadyClosed
 	}
 
-	return rc.r.Read(p)
+	n, err := rc.r.Read(p)
+	if err != nil && !errors.Is(err, io.EOF) {
+		err = fmt.Errorf("lzma: error reading: %w", err)
+	}
+
+	return n, err
 }
 
 // NewReader returns a new LZMA io.ReadCloser.
 func NewReader(p []byte, s uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
 	if len(readers) != 1 {
-		return nil, errors.New("lzma: need exactly one reader")
+		return nil, errNeedOneReader
 	}
 
 	h := bytes.NewBuffer(p)
@@ -43,7 +59,7 @@ func NewReader(p []byte, s uint64, readers []io.ReadCloser) (io.ReadCloser, erro
 
 	lr, err := lzma.NewReader(multiReader(h, readers[0]))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("lzma: error creating reader: %w", err)
 	}
 
 	return &readCloser{
@@ -72,14 +88,25 @@ type multiByteReader struct {
 	mr io.Reader
 }
 
-func (m *multiByteReader) ReadByte() (byte, error) {
+func (m *multiByteReader) ReadByte() (b byte, err error) {
 	if m.b.Len() > 0 {
-		return m.b.ReadByte()
+		b, err = m.b.ReadByte()
+	} else {
+		b, err = m.br.ReadByte()
 	}
 
-	return m.br.ReadByte()
+	if err != nil {
+		err = fmt.Errorf("lzma: error multi byte reading: %w", err)
+	}
+
+	return b, err
 }
 
-func (m *multiByteReader) Read(p []byte) (n int, err error) {
-	return m.mr.Read(p)
+func (m *multiByteReader) Read(p []byte) (int, error) {
+	n, err := m.mr.Read(p)
+	if err != nil {
+		err = fmt.Errorf("lzma: error multi reading: %w", err)
+	}
+
+	return n, err
 }

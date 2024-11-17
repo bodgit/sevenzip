@@ -8,13 +8,16 @@ import (
 	"io"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"testing"
 	"testing/fstest"
 	"testing/iotest"
 
 	"github.com/bodgit/sevenzip"
 	"github.com/bodgit/sevenzip/internal/util"
+	"github.com/hashicorp/go-multierror"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -22,13 +25,15 @@ func reader(r io.Reader) io.Reader {
 	return r
 }
 
+var errCRCMismatch = errors.New("CRC doesn't match")
+
 func extractFile(tb testing.TB, r io.Reader, h hash.Hash, f *sevenzip.File) error {
 	tb.Helper()
 
 	h.Reset()
 
 	if _, err := io.Copy(h, r); err != nil {
-		return err
+		return fmt.Errorf("error extracting file: %w", err)
 	}
 
 	if f.UncompressedSize > 0 && f.CRC32 == 0 {
@@ -38,14 +43,14 @@ func extractFile(tb testing.TB, r io.Reader, h hash.Hash, f *sevenzip.File) erro
 	}
 
 	if !util.CRC32Equal(h.Sum(nil), f.CRC32) {
-		return errors.New("CRC doesn't match")
+		return errCRCMismatch
 	}
 
 	return nil
 }
 
 //nolint:lll
-func extractArchive(tb testing.TB, r *sevenzip.ReadCloser, stream int, h hash.Hash, fn func(io.Reader) io.Reader, optimised bool) error {
+func extractArchive(tb testing.TB, r *sevenzip.ReadCloser, stream int, h hash.Hash, fn func(io.Reader) io.Reader, optimised bool) (err error) {
 	tb.Helper()
 
 	for _, f := range r.File {
@@ -53,18 +58,25 @@ func extractArchive(tb testing.TB, r *sevenzip.ReadCloser, stream int, h hash.Ha
 			continue
 		}
 
-		rc, err := f.Open()
+		var rc io.ReadCloser
+
+		rc, err = f.Open()
 		if err != nil {
-			return err
+			return fmt.Errorf("error opening file: %w", err)
 		}
-		defer rc.Close()
+
+		defer func() {
+			err = multierror.Append(err, rc.Close()).ErrorOrNil()
+		}()
 
 		if err = extractFile(tb, fn(rc), h, f); err != nil {
 			return err
 		}
 
 		if optimised {
-			rc.Close()
+			if err = rc.Close(); err != nil {
+				return fmt.Errorf("error closing: %w", err)
+			}
 		}
 	}
 
@@ -194,12 +206,19 @@ func TestOpenReader(t *testing.T) {
 			t.Parallel()
 
 			r, err := sevenzip.OpenReader(filepath.Join("testdata", table.file))
-			if err != nil {
+			if table.err == nil {
+				require.NoError(t, err)
+			} else {
 				assert.ErrorIs(t, err, table.err)
 
 				return
 			}
-			defer r.Close()
+
+			defer func() {
+				if err := r.Close(); err != nil {
+					t.Fatal(err)
+				}
+			}()
 
 			volumes := []string{}
 
@@ -237,6 +256,16 @@ func TestOpenReaderWithPassword(t *testing.T) {
 			password: "password",
 		},
 		{
+			name:     "unencrypted headers compressed files",
+			file:     "t4.7z",
+			password: "password",
+		},
+		{
+			name:     "unencrypted headers uncompressed files",
+			file:     "t5.7z",
+			password: "password",
+		},
+		{
 			name:     "issue 75",
 			file:     "7zcracker.7z",
 			password: "876",
@@ -253,13 +282,65 @@ func TestOpenReaderWithPassword(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer r.Close()
+
+			defer func() {
+				if err := r.Close(); err != nil {
+					t.Fatal(err)
+				}
+			}()
 
 			if err := extractArchive(t, r, -1, crc32.NewIEEE(), iotest.OneByteReader, true); err != nil {
 				t.Fatal(err)
 			}
 		})
 	}
+}
+
+func TestOpenReaderWithWrongPassword(t *testing.T) {
+	t.Parallel()
+
+	t.Run("encrypted headers", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := sevenzip.OpenReaderWithPassword(filepath.Join("testdata", "t2.7z"), "notpassword")
+
+		var e *sevenzip.ReadError
+		if assert.ErrorAs(t, err, &e) {
+			assert.True(t, e.Encrypted)
+		}
+	})
+
+	t.Run("unencrypted headers compressed files", func(t *testing.T) {
+		t.Parallel()
+
+		r, err := sevenzip.OpenReaderWithPassword(filepath.Join("testdata", "t4.7z"), "notpassword")
+		require.NoError(t, err)
+
+		defer func() {
+			require.NoError(t, r.Close())
+		}()
+
+		err = extractArchive(t, r, -1, crc32.NewIEEE(), iotest.OneByteReader, true)
+
+		var e *sevenzip.ReadError
+		if assert.ErrorAs(t, err, &e) {
+			assert.True(t, e.Encrypted)
+		}
+	})
+
+	t.Run("unencrypted headers uncompressed files", func(t *testing.T) {
+		t.Parallel()
+
+		r, err := sevenzip.OpenReaderWithPassword(filepath.Join("testdata", "t5.7z"), "notpassword")
+		require.NoError(t, err)
+
+		defer func() {
+			require.NoError(t, r.Close())
+		}()
+
+		err = extractArchive(t, r, -1, crc32.NewIEEE(), iotest.OneByteReader, true)
+		assert.ErrorIs(t, err, errCRCMismatch)
+	})
 }
 
 func TestFS(t *testing.T) {
@@ -269,7 +350,12 @@ func TestFS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer r.Close()
+
+	defer func() {
+		if err := r.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	if err := fstest.TestFS(r, "Asm/arm/7zCrcOpt.asm", "bin/x64/7zr.exe"); err != nil {
 		t.Fatal(err)
@@ -281,7 +367,12 @@ func ExampleOpenReader() {
 	if err != nil {
 		panic(err)
 	}
-	defer r.Close()
+
+	defer func() {
+		if err := r.Close(); err != nil {
+			panic(err)
+		}
+	}()
 
 	for _, file := range r.File {
 		fmt.Println(file.Name)
@@ -306,7 +397,16 @@ func benchmarkArchiveParallel(b *testing.B, file string) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		defer r.Close()
+
+		var once sync.Once
+
+		f := func() {
+			if err := r.Close(); err != nil {
+				b.Fatal(err)
+			}
+		}
+
+		defer once.Do(f)
 
 		streams := make(map[int]struct{}, len(r.File))
 
@@ -329,7 +429,7 @@ func benchmarkArchiveParallel(b *testing.B, file string) {
 			b.Fatal(err)
 		}
 
-		r.Close()
+		once.Do(f)
 	}
 }
 
@@ -341,7 +441,16 @@ func benchmarkArchiveNaiveParallel(b *testing.B, file string, workers int) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		defer r.Close()
+
+		var once sync.Once
+
+		f := func() {
+			if err := r.Close(); err != nil {
+				b.Fatal(err)
+			}
+		}
+
+		defer once.Do(f)
 
 		eg := new(errgroup.Group)
 		eg.SetLimit(workers)
@@ -349,12 +458,17 @@ func benchmarkArchiveNaiveParallel(b *testing.B, file string, workers int) {
 		for _, f := range r.File {
 			f := f
 
-			eg.Go(func() error {
-				rc, err := f.Open()
+			eg.Go(func() (err error) {
+				var rc io.ReadCloser
+
+				rc, err = f.Open()
 				if err != nil {
-					return err
+					return fmt.Errorf("error opening file: %w", err)
 				}
-				defer rc.Close()
+
+				defer func() {
+					err = multierror.Append(err, rc.Close()).ErrorOrNil()
+				}()
 
 				return extractFile(b, rc, crc32.NewIEEE(), f)
 			})
@@ -364,7 +478,7 @@ func benchmarkArchiveNaiveParallel(b *testing.B, file string, workers int) {
 			b.Fatal(err)
 		}
 
-		r.Close()
+		once.Do(f)
 	}
 }
 
@@ -378,13 +492,22 @@ func benchmarkArchive(b *testing.B, file, password string, optimised bool) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		defer r.Close()
+
+		var once sync.Once
+
+		f := func() {
+			if err := r.Close(); err != nil {
+				b.Fatal(err)
+			}
+		}
+
+		defer once.Do(f)
 
 		if err := extractArchive(b, r, -1, h, reader, optimised); err != nil {
 			b.Fatal(err)
 		}
 
-		r.Close()
+		once.Do(f)
 	}
 }
 

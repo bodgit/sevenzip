@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 
 	lru "github.com/hashicorp/golang-lru/v2"
 	"go4.org/syncutil"
@@ -32,7 +33,7 @@ func calculateKey(password string, cycles int, salt []byte) ([]byte, error) {
 
 		return
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("aes7z: error creating cache: %w", err)
 	}
 
 	ck := cacheKey{

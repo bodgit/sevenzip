@@ -1,4 +1,6 @@
 ---
+issues:
+  exclude-use-default: false
 linters:
   disable-all: true
   enable:
@@ -16,6 +18,7 @@ linters:
     - dupl
     - dupword
     - durationcheck
+    - err113
     - errcheck
     - errchkjson
     - errname
@@ -97,5 +100,6 @@ linters:
     - usestdlibvars
     - wastedassign
     - whitespace
+    - wrapcheck
     - wsl
     - zerologlint

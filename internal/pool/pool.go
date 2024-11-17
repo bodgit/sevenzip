@@ -1,3 +1,4 @@
+// Package pool implements the reader pooling.
 package pool
 
 import (
@@ -30,7 +31,7 @@ func (noopPool) Get(_ int64) (util.SizeReadSeekCloser, bool) {
 }
 
 func (noopPool) Put(_ int64, rc util.SizeReadSeekCloser) (bool, error) {
-	return false, rc.Close()
+	return false, rc.Close() //nolint:wrapcheck
 }
 
 type pool struct {
@@ -130,7 +131,7 @@ func (p *pool) removeElement(e *list.Element, cb bool) error {
 	delete(p.items, kv.key)
 
 	if cb {
-		return kv.value.Close()
+		return kv.value.Close() //nolint:wrapcheck
 	}
 
 	return nil
