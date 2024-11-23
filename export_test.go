@@ -1,3 +1,6 @@
 package sevenzip
 
-var ErrMissingUnpackInfo = errMissingUnpackInfo
+var (
+	ErrMissingUnpackInfo = errMissingUnpackInfo
+	ErrNegativeSize      = errNegativeSize
+)
