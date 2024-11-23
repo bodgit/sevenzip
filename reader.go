@@ -10,7 +10,6 @@ import (
 	"hash/crc32"
 	"io"
 	iofs "io/fs"
-	"os"
 	"path"
 	"path/filepath"
 	"sort"
@@ -21,6 +20,7 @@ import (
 	"github.com/bodgit/plumbing"
 	"github.com/bodgit/sevenzip/internal/pool"
 	"github.com/bodgit/sevenzip/internal/util"
+	"github.com/spf13/afero"
 	"go4.org/readerutil"
 )
 
@@ -63,7 +63,7 @@ type Reader struct {
 
 // A ReadCloser is a [Reader] that must be closed when no longer needed.
 type ReadCloser struct {
-	f []*os.File
+	f []afero.File
 	Reader
 }
 
@@ -187,35 +187,29 @@ func (f *File) Open() (io.ReadCloser, error) {
 	}, nil
 }
 
-// OpenReaderWithPassword will open the 7-zip file specified by name using
-// password as the basis of the decryption key and return a [*ReadCloser]. If
-// name has a ".001" suffix it is assumed there are multiple volumes and each
-// sequential volume will be opened.
-//
-//nolint:cyclop,funlen
-func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
-	f, err := os.Open(filepath.Clean(name))
+func openReader(fs afero.Fs, name string) (io.ReaderAt, int64, []afero.File, error) {
+	f, err := fs.Open(filepath.Clean(name))
 	if err != nil {
-		return nil, fmt.Errorf("sevenzip: error opening: %w", err)
+		return nil, 0, nil, fmt.Errorf("sevenzip: error opening: %w", err)
 	}
 
 	info, err := f.Stat()
 	if err != nil {
 		err = errors.Join(err, f.Close())
 
-		return nil, fmt.Errorf("sevenzip: error retrieving file info: %w", err)
+		return nil, 0, nil, fmt.Errorf("sevenzip: error retrieving file info: %w", err)
 	}
 
 	var reader io.ReaderAt = f
 
 	size := info.Size()
-	files := []*os.File{f}
+	files := []afero.File{f}
 
 	if ext := filepath.Ext(name); ext == ".001" {
 		sr := []readerutil.SizeReaderAt{io.NewSectionReader(f, 0, size)}
 
 		for i := 2; true; i++ {
-			f, err := os.Open(fmt.Sprintf("%s.%03d", strings.TrimSuffix(name, ext), i))
+			f, err := fs.Open(fmt.Sprintf("%s.%03d", strings.TrimSuffix(name, ext), i))
 			if err != nil {
 				if errors.Is(err, iofs.ErrNotExist) {
 					break
@@ -228,7 +222,7 @@ func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
 					errs = append(errs, file.Close())
 				}
 
-				return nil, fmt.Errorf("sevenzip: error opening: %w", errors.Join(errs...))
+				return nil, 0, nil, fmt.Errorf("sevenzip: error opening: %w", errors.Join(errs...))
 			}
 
 			files = append(files, f)
@@ -242,7 +236,7 @@ func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
 					errs = append(errs, file.Close())
 				}
 
-				return nil, fmt.Errorf("sevenzip: error retrieving file info: %w", errors.Join(errs...))
+				return nil, 0, nil, fmt.Errorf("sevenzip: error retrieving file info: %w", errors.Join(errs...))
 			}
 
 			sr = append(sr, io.NewSectionReader(f, 0, info.Size()))
@@ -250,6 +244,19 @@ func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
 
 		mr := readerutil.NewMultiReaderAt(sr...)
 		reader, size = mr, mr.Size()
+	}
+
+	return reader, size, files, nil
+}
+
+// OpenReaderWithPassword will open the 7-zip file specified by name using
+// password as the basis of the decryption key and return a [*ReadCloser]. If
+// name has a ".001" suffix it is assumed there are multiple volumes and each
+// sequential volume will be opened.
+func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
+	reader, size, files, err := openReader(afero.NewOsFs(), name)
+	if err != nil {
+		return nil, err
 	}
 
 	r := new(ReadCloser)
