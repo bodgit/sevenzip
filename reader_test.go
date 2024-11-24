@@ -6,6 +6,7 @@ import (
 	"hash"
 	"hash/crc32"
 	"io"
+	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
@@ -49,7 +50,7 @@ func extractFile(tb testing.TB, r io.Reader, h hash.Hash, f *sevenzip.File) erro
 }
 
 //nolint:lll
-func extractArchive(tb testing.TB, r *sevenzip.ReadCloser, stream int, h hash.Hash, fn func(io.Reader) io.Reader, optimised bool) (err error) {
+func extractArchive(tb testing.TB, r *sevenzip.Reader, stream int, h hash.Hash, fn func(io.Reader) io.Reader, optimised bool) (err error) {
 	tb.Helper()
 
 	for _, f := range r.File {
@@ -231,7 +232,7 @@ func TestOpenReader(t *testing.T) {
 
 			assert.Equal(t, volumes, r.Volumes())
 
-			if err := extractArchive(t, r, -1, crc32.NewIEEE(), iotest.OneByteReader, true); err != nil {
+			if err := extractArchive(t, &r.Reader, -1, crc32.NewIEEE(), iotest.OneByteReader, true); err != nil {
 				t.Fatal(err)
 			}
 		})
@@ -288,7 +289,7 @@ func TestOpenReaderWithPassword(t *testing.T) {
 				}
 			}()
 
-			if err := extractArchive(t, r, -1, crc32.NewIEEE(), iotest.OneByteReader, true); err != nil {
+			if err := extractArchive(t, &r.Reader, -1, crc32.NewIEEE(), iotest.OneByteReader, true); err != nil {
 				t.Fatal(err)
 			}
 		})
@@ -319,7 +320,7 @@ func TestOpenReaderWithWrongPassword(t *testing.T) {
 			require.NoError(t, r.Close())
 		}()
 
-		err = extractArchive(t, r, -1, crc32.NewIEEE(), iotest.OneByteReader, true)
+		err = extractArchive(t, &r.Reader, -1, crc32.NewIEEE(), iotest.OneByteReader, true)
 
 		var e *sevenzip.ReadError
 		if assert.ErrorAs(t, err, &e) {
@@ -337,9 +338,72 @@ func TestOpenReaderWithWrongPassword(t *testing.T) {
 			require.NoError(t, r.Close())
 		}()
 
-		err = extractArchive(t, r, -1, crc32.NewIEEE(), iotest.OneByteReader, true)
+		err = extractArchive(t, &r.Reader, -1, crc32.NewIEEE(), iotest.OneByteReader, true)
 		assert.ErrorIs(t, err, errCRCMismatch)
 	})
+}
+
+func TestNewReader(t *testing.T) {
+	t.Parallel()
+
+	tables := []struct {
+		name, file string
+		size       int64
+		err        error
+	}{
+		{
+			name: "no header compression",
+			file: "t0.7z",
+		},
+		{
+			name: "no header compression",
+			file: "t0.7z",
+			size: -1,
+			err:  sevenzip.ErrNegativeSize,
+		},
+	}
+
+	for _, table := range tables {
+		table := table
+
+		t.Run(table.name, func(t *testing.T) {
+			t.Parallel()
+
+			f, err := os.Open(filepath.Join("testdata", table.file))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			defer func() {
+				if err := f.Close(); err != nil {
+					t.Fatal(err)
+				}
+			}()
+
+			size := table.size
+			if size == 0 {
+				info, err := f.Stat()
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				size = info.Size()
+			}
+
+			r, err := sevenzip.NewReader(f, size)
+			if table.err == nil {
+				require.NoError(t, err)
+			} else {
+				assert.ErrorIs(t, err, table.err)
+
+				return
+			}
+
+			if err := extractArchive(t, r, -1, crc32.NewIEEE(), iotest.OneByteReader, true); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
 }
 
 func TestFS(t *testing.T) {
@@ -420,7 +484,7 @@ func benchmarkArchiveParallel(b *testing.B, file string) {
 			stream := stream
 
 			eg.Go(func() error {
-				return extractArchive(b, r, stream, crc32.NewIEEE(), reader, true)
+				return extractArchive(b, &r.Reader, stream, crc32.NewIEEE(), reader, true)
 			})
 		}
 
@@ -502,7 +566,7 @@ func benchmarkArchive(b *testing.B, file, password string, optimised bool) {
 
 		defer once.Do(f)
 
-		if err := extractArchive(b, r, -1, h, reader, optimised); err != nil {
+		if err := extractArchive(b, &r.Reader, -1, h, reader, optimised); err != nil {
 			b.Fatal(err)
 		}
 

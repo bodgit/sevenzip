@@ -7,7 +7,7 @@ import (
 	"hash"
 	"hash/crc32"
 	"io"
-	"io/fs"
+	iofs "io/fs"
 	"path"
 	"time"
 
@@ -357,8 +357,8 @@ type FileHeader struct {
 	isEmptyFile   bool
 }
 
-// FileInfo returns an fs.FileInfo for the FileHeader.
-func (h *FileHeader) FileInfo() fs.FileInfo {
+// FileInfo returns an [fs.FileInfo] for the FileHeader.
+func (h *FileHeader) FileInfo() iofs.FileInfo {
 	return headerFileInfo{h}
 }
 
@@ -366,15 +366,15 @@ type headerFileInfo struct {
 	fh *FileHeader
 }
 
-func (fi headerFileInfo) Name() string       { return path.Base(fi.fh.Name) }
-func (fi headerFileInfo) Size() int64        { return int64(fi.fh.UncompressedSize) } //nolint:gosec
-func (fi headerFileInfo) IsDir() bool        { return fi.Mode().IsDir() }
-func (fi headerFileInfo) ModTime() time.Time { return fi.fh.Modified.UTC() }
-func (fi headerFileInfo) Mode() fs.FileMode  { return fi.fh.Mode() }
-func (fi headerFileInfo) Type() fs.FileMode  { return fi.fh.Mode().Type() }
-func (fi headerFileInfo) Sys() interface{}   { return fi.fh }
+func (fi headerFileInfo) Name() string        { return path.Base(fi.fh.Name) }
+func (fi headerFileInfo) Size() int64         { return int64(fi.fh.UncompressedSize) } //nolint:gosec
+func (fi headerFileInfo) IsDir() bool         { return fi.Mode().IsDir() }
+func (fi headerFileInfo) ModTime() time.Time  { return fi.fh.Modified.UTC() }
+func (fi headerFileInfo) Mode() iofs.FileMode { return fi.fh.Mode() }
+func (fi headerFileInfo) Type() iofs.FileMode { return fi.fh.Mode().Type() }
+func (fi headerFileInfo) Sys() interface{}    { return fi.fh }
 
-func (fi headerFileInfo) Info() (fs.FileInfo, error) { return fi, nil }
+func (fi headerFileInfo) Info() (iofs.FileInfo, error) { return fi, nil }
 
 const (
 	// Unix constants. The specification doesn't mention them,
@@ -396,7 +396,7 @@ const (
 )
 
 // Mode returns the permission and mode bits for the FileHeader.
-func (h *FileHeader) Mode() (mode fs.FileMode) {
+func (h *FileHeader) Mode() (mode iofs.FileMode) {
 	// Prefer the POSIX attributes if they're present
 	if h.Attributes&0xf0000000 != 0 {
 		mode = unixModeToFileMode(h.Attributes >> 16)
@@ -407,9 +407,9 @@ func (h *FileHeader) Mode() (mode fs.FileMode) {
 	return
 }
 
-func msdosModeToFileMode(m uint32) (mode fs.FileMode) {
+func msdosModeToFileMode(m uint32) (mode iofs.FileMode) {
 	if m&msdosDir != 0 {
-		mode = fs.ModeDir | 0o777
+		mode = iofs.ModeDir | 0o777
 	} else {
 		mode = 0o666
 	}
@@ -422,36 +422,36 @@ func msdosModeToFileMode(m uint32) (mode fs.FileMode) {
 }
 
 //nolint:cyclop
-func unixModeToFileMode(m uint32) fs.FileMode {
-	mode := fs.FileMode(m & 0o777)
+func unixModeToFileMode(m uint32) iofs.FileMode {
+	mode := iofs.FileMode(m & 0o777)
 
 	switch m & sIFMT {
 	case sIFBLK:
-		mode |= fs.ModeDevice
+		mode |= iofs.ModeDevice
 	case sIFCHR:
-		mode |= fs.ModeDevice | fs.ModeCharDevice
+		mode |= iofs.ModeDevice | iofs.ModeCharDevice
 	case sIFDIR:
-		mode |= fs.ModeDir
+		mode |= iofs.ModeDir
 	case sIFIFO:
-		mode |= fs.ModeNamedPipe
+		mode |= iofs.ModeNamedPipe
 	case sIFLNK:
-		mode |= fs.ModeSymlink
+		mode |= iofs.ModeSymlink
 	case sIFREG:
 		// nothing to do
 	case sIFSOCK:
-		mode |= fs.ModeSocket
+		mode |= iofs.ModeSocket
 	}
 
 	if m&sISGID != 0 {
-		mode |= fs.ModeSetgid
+		mode |= iofs.ModeSetgid
 	}
 
 	if m&sISUID != 0 {
-		mode |= fs.ModeSetuid
+		mode |= iofs.ModeSetuid
 	}
 
 	if m&sISVTX != 0 {
-		mode |= fs.ModeSticky
+		mode |= iofs.ModeSticky
 	}
 
 	return mode
