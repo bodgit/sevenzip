@@ -2,7 +2,7 @@
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/6882/badge)](https://www.bestpractices.dev/projects/6882)
 [![GitHub release](https://img.shields.io/github/v/release/bodgit/sevenzip)](https://github.com/bodgit/sevenzip/releases)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/bodgit/sevenzip/build.yml?branch=main)](https://github.com/bodgit/sevenzip/actions?query=workflow%3ABuild)
-[![Coverage Status](https://coveralls.io/repos/github/bodgit/sevenzip/badge.svg?branch=master)](https://coveralls.io/github/bodgit/sevenzip?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/bodgit/sevenzip/badge.svg?branch=main)](https://coveralls.io/github/bodgit/sevenzip?branch=main)
 [![Go Report Card](https://goreportcard.com/badge/github.com/bodgit/sevenzip)](https://goreportcard.com/report/github.com/bodgit/sevenzip)
 [![GoDoc](https://godoc.org/github.com/bodgit/sevenzip?status.svg)](https://godoc.org/github.com/bodgit/sevenzip)
 ![Go version](https://img.shields.io/badge/Go-1.22-brightgreen.svg)
