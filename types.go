@@ -315,7 +315,7 @@ func readFolder(r util.Reader) (*folder, error) {
 	return f, nil
 }
 
-//nolint:cyclop,funlen,gocognit
+//nolint:cyclop,funlen
 func readUnpackInfo(r util.Reader) (*unpackInfo, error) {
 	u := new(unpackInfo)
 
@@ -338,10 +338,12 @@ func readUnpackInfo(r util.Reader) (*unpackInfo, error) {
 	}
 
 	if external > 0 {
-		_, err := readUint64(r)
-		if err != nil {
-			return nil, err
-		}
+		/*
+			_, err := readUint64(r)
+			if err != nil {
+				return nil, err
+			}
+		*/
 		// TODO Apparently we seek to this read offset and read the
 		// folder information from there. Not clear if the offset is
 		// absolute for the whole file, or relative to some known
@@ -544,10 +546,12 @@ func readTimes(r util.Reader, count uint64) ([]time.Time, error) {
 	}
 
 	if external > 0 {
-		_, err := readUint64(r)
-		if err != nil {
-			return nil, err
-		}
+		/*
+			_, err := readUint64(r)
+			if err != nil {
+				return nil, err
+			}
+		*/
 		// TODO Apparently we seek to this read offset and read the
 		// folder information from there. Not clear if the offset is
 		// absolute for the whole file, or relative to some known
@@ -594,10 +598,12 @@ func readNames(r util.Reader, count, length uint64) ([]string, error) {
 	}
 
 	if external > 0 {
-		_, err := readUint64(r)
-		if err != nil {
-			return nil, err
-		}
+		/*
+			_, err := readUint64(r)
+			if err != nil {
+				return nil, err
+			}
+		*/
 		// TODO Apparently we seek to this read offset and read the
 		// folder information from there. Not clear if the offset is
 		// absolute for the whole file, or relative to some known
@@ -638,10 +644,12 @@ func readAttributes(r util.Reader, count uint64) ([]uint32, error) {
 	}
 
 	if external > 0 {
-		_, err := readUint64(r)
-		if err != nil {
-			return nil, err
-		}
+		/*
+			_, err := readUint64(r)
+			if err != nil {
+				return nil, err
+			}
+		*/
 		// TODO Apparently we seek to this read offset and read the
 		// folder information from there. Not clear if the offset is
 		// absolute for the whole file, or relative to some known
@@ -787,23 +795,23 @@ func readHeader(r util.Reader) (*header, error) {
 	}
 
 	if id == idArchiveProperties {
-		return nil, errors.New("sevenzip: TODO idArchiveProperties") //nolint:goerr113,revive
-
-		//nolint:govet
-		id, err = r.ReadByte()
-		if err != nil {
-			return nil, fmt.Errorf("readHeader: ReadByte error: %w", err)
-		}
+		/*
+			id, err = r.ReadByte()
+			if err != nil {
+				return nil, fmt.Errorf("readHeader: ReadByte error: %w", err)
+			}
+		*/
+		return nil, errors.New("sevenzip: TODO idArchiveProperties") //nolint:goerr113
 	}
 
 	if id == idAdditionalStreamsInfo {
-		return nil, errors.New("sevenzip: TODO idAdditionalStreamsInfo") //nolint:goerr113,revive
-
-		//nolint:govet
-		id, err = r.ReadByte()
-		if err != nil {
-			return nil, fmt.Errorf("readHeader: ReadByte error: %w", err)
-		}
+		/*
+			id, err = r.ReadByte()
+			if err != nil {
+				return nil, fmt.Errorf("readHeader: ReadByte error: %w", err)
+			}
+		*/
+		return nil, errors.New("sevenzip: TODO idAdditionalStreamsInfo") //nolint:goerr113
 	}
 
 	if id == idMainStreamsInfo {
