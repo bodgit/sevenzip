@@ -20,13 +20,13 @@ var (
 	//nolint:gochecknoglobals
 	zstdReaderPool sync.Pool
 
-	errAlreadyClosed = errors.New("zstd: already closed")
-	errNeedOneReader = errors.New("zstd: need exactly one reader")
+	ErrAlreadyClosed = errors.New("zstd: already closed")
+	ErrNeedOneReader = errors.New("zstd: need exactly one reader")
 )
 
 func (rc *readCloser) Close() error {
 	if rc.c == nil {
-		return errAlreadyClosed
+		return ErrAlreadyClosed
 	}
 
 	if err := rc.c.Close(); err != nil {
@@ -41,7 +41,7 @@ func (rc *readCloser) Close() error {
 
 func (rc *readCloser) Read(p []byte) (int, error) {
 	if rc.r == nil {
-		return 0, errAlreadyClosed
+		return 0, ErrAlreadyClosed
 	}
 
 	n, err := rc.r.Read(p)
@@ -55,7 +55,7 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 // NewReader returns a new Zstandard io.ReadCloser.
 func NewReader(_ []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
 	if len(readers) != 1 {
-		return nil, errNeedOneReader
+		return nil, ErrNeedOneReader
 	}
 
 	var err error

@@ -28,8 +28,8 @@ var (
 	//nolint:gochecknoglobals
 	brotliReaderPool sync.Pool
 
-	errAlreadyClosed = errors.New("brotli: already closed")
-	errNeedOneReader = errors.New("brotli: need exactly one reader")
+	ErrAlreadyClosed = errors.New("brotli: already closed")
+	ErrNeedOneReader = errors.New("brotli: need exactly one reader")
 )
 
 // This isn't part of the Brotli format but is prepended by the 7-zip implementation.
@@ -43,7 +43,7 @@ type headerFrame struct {
 
 func (rc *readCloser) Close() error {
 	if rc.c == nil || rc.r == nil {
-		return errAlreadyClosed
+		return ErrAlreadyClosed
 	}
 
 	if err := rc.c.Close(); err != nil {
@@ -58,7 +58,7 @@ func (rc *readCloser) Close() error {
 
 func (rc *readCloser) Read(p []byte) (int, error) {
 	if rc.r == nil {
-		return 0, errAlreadyClosed
+		return 0, ErrAlreadyClosed
 	}
 
 	n, err := rc.r.Read(p)
@@ -72,7 +72,7 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 // NewReader returns a new Brotli io.ReadCloser.
 func NewReader(_ []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
 	if len(readers) != 1 {
-		return nil, errNeedOneReader
+		return nil, ErrNeedOneReader
 	}
 
 	hr, b := new(headerFrame), new(bytes.Buffer)

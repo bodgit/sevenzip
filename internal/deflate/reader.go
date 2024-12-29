@@ -20,13 +20,13 @@ var (
 	//nolint:gochecknoglobals
 	flateReaderPool sync.Pool
 
-	errAlreadyClosed = errors.New("deflate: already closed")
-	errNeedOneReader = errors.New("deflate: need exactly one reader")
+	ErrAlreadyClosed = errors.New("deflate: already closed")
+	ErrNeedOneReader = errors.New("deflate: need exactly one reader")
 )
 
 func (rc *readCloser) Close() error {
 	if rc.c == nil || rc.fr == nil {
-		return errAlreadyClosed
+		return ErrAlreadyClosed
 	}
 
 	if err := errors.Join(rc.fr.Close(), rc.c.Close()); err != nil {
@@ -41,7 +41,7 @@ func (rc *readCloser) Close() error {
 
 func (rc *readCloser) Read(p []byte) (int, error) {
 	if rc.c == nil || rc.fr == nil {
-		return 0, errAlreadyClosed
+		return 0, ErrAlreadyClosed
 	}
 
 	n, err := rc.fr.Read(p)
@@ -55,7 +55,7 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 // NewReader returns a new DEFLATE io.ReadCloser.
 func NewReader(_ []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
 	if len(readers) != 1 {
-		return nil, errNeedOneReader
+		return nil, ErrNeedOneReader
 	}
 
 	fr, ok := flateReaderPool.Get().(io.ReadCloser)

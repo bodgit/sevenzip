@@ -15,13 +15,13 @@ type readCloser struct {
 }
 
 var (
-	errAlreadyClosed = errors.New("bra: already closed")
-	errNeedOneReader = errors.New("bra: need exactly one reader")
+	ErrAlreadyClosed = errors.New("bra: already closed")
+	ErrNeedOneReader = errors.New("bra: need exactly one reader")
 )
 
 func (rc *readCloser) Close() error {
 	if rc.rc == nil {
-		return errAlreadyClosed
+		return ErrAlreadyClosed
 	}
 
 	if err := rc.rc.Close(); err != nil {
@@ -35,7 +35,7 @@ func (rc *readCloser) Close() error {
 
 func (rc *readCloser) Read(p []byte) (int, error) {
 	if rc.rc == nil {
-		return 0, errAlreadyClosed
+		return 0, ErrAlreadyClosed
 	}
 
 	if _, err := io.CopyN(&rc.buf, rc.rc, int64(max(len(p), rc.conv.Size())-rc.buf.Len())); err != nil {
@@ -62,7 +62,7 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 
 func newReader(readers []io.ReadCloser, conv converter) (io.ReadCloser, error) {
 	if len(readers) != 1 {
-		return nil, errNeedOneReader
+		return nil, ErrNeedOneReader
 	}
 
 	return &readCloser{

@@ -37,8 +37,8 @@ const (
 )
 
 var (
-	errAlreadyClosed   = errors.New("bcj2: already closed")
-	errNeedFourReaders = errors.New("bcj2: need exactly four readers")
+	ErrAlreadyClosed   = errors.New("bcj2: already closed")
+	ErrNeedFourReaders = errors.New("bcj2: need exactly four readers")
 )
 
 func isJcc(b0, b1 byte) bool {
@@ -63,7 +63,7 @@ func index(b0, b1 byte) int {
 // NewReader returns a new BCJ2 io.ReadCloser.
 func NewReader(_ []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
 	if len(readers) != 4 {
-		return nil, errNeedFourReaders
+		return nil, ErrNeedFourReaders
 	}
 
 	rc := &readCloser{
@@ -98,7 +98,7 @@ func NewReader(_ []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, erro
 
 func (rc *readCloser) Close() error {
 	if rc.main == nil || rc.call == nil || rc.jump == nil || rc.rd == nil {
-		return errAlreadyClosed
+		return ErrAlreadyClosed
 	}
 
 	if err := errors.Join(rc.main.Close(), rc.call.Close(), rc.jump.Close(), rc.rd.Close()); err != nil {
@@ -112,7 +112,7 @@ func (rc *readCloser) Close() error {
 
 func (rc *readCloser) Read(p []byte) (int, error) {
 	if rc.main == nil || rc.call == nil || rc.jump == nil || rc.rd == nil {
-		return 0, errAlreadyClosed
+		return 0, ErrAlreadyClosed
 	}
 
 	if err := rc.read(); err != nil && !errors.Is(err, io.EOF) {

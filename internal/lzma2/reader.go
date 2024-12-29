@@ -15,14 +15,14 @@ type readCloser struct {
 }
 
 var (
-	errAlreadyClosed          = errors.New("lzma2: already closed")
-	errNeedOneReader          = errors.New("lzma2: need exactly one reader")
-	errInsufficientProperties = errors.New("lzma2: not enough properties")
+	ErrAlreadyClosed          = errors.New("lzma2: already closed")
+	ErrNeedOneReader          = errors.New("lzma2: need exactly one reader")
+	ErrInsufficientProperties = errors.New("lzma2: not enough properties")
 )
 
 func (rc *readCloser) Close() error {
 	if rc.c == nil || rc.r == nil {
-		return errAlreadyClosed
+		return ErrAlreadyClosed
 	}
 
 	if err := rc.c.Close(); err != nil {
@@ -36,7 +36,7 @@ func (rc *readCloser) Close() error {
 
 func (rc *readCloser) Read(p []byte) (int, error) {
 	if rc.r == nil {
-		return 0, errAlreadyClosed
+		return 0, ErrAlreadyClosed
 	}
 
 	n, err := rc.r.Read(p)
@@ -50,11 +50,11 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 // NewReader returns a new LZMA2 io.ReadCloser.
 func NewReader(p []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
 	if len(readers) != 1 {
-		return nil, errNeedOneReader
+		return nil, ErrNeedOneReader
 	}
 
 	if len(p) != 1 {
-		return nil, errInsufficientProperties
+		return nil, ErrInsufficientProperties
 	}
 
 	config := lzma.Reader2Config{
