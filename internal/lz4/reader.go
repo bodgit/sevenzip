@@ -19,13 +19,13 @@ var (
 	//nolint:gochecknoglobals
 	lz4ReaderPool sync.Pool
 
-	errAlreadyClosed = errors.New("lz4: already closed")
-	errNeedOneReader = errors.New("lz4: need exactly one reader")
+	ErrAlreadyClosed = errors.New("lz4: already closed")
+	ErrNeedOneReader = errors.New("lz4: need exactly one reader")
 )
 
 func (rc *readCloser) Close() error {
 	if rc.c == nil || rc.r == nil {
-		return errAlreadyClosed
+		return ErrAlreadyClosed
 	}
 
 	if err := rc.c.Close(); err != nil {
@@ -40,7 +40,7 @@ func (rc *readCloser) Close() error {
 
 func (rc *readCloser) Read(p []byte) (int, error) {
 	if rc.r == nil {
-		return 0, errAlreadyClosed
+		return 0, ErrAlreadyClosed
 	}
 
 	n, err := rc.r.Read(p)
@@ -54,7 +54,7 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 // NewReader returns a new LZ4 io.ReadCloser.
 func NewReader(_ []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
 	if len(readers) != 1 {
-		return nil, errNeedOneReader
+		return nil, ErrNeedOneReader
 	}
 
 	r, ok := lz4ReaderPool.Get().(*lz4.Reader)

@@ -18,14 +18,14 @@ const (
 )
 
 var (
-	errAlreadyClosed          = errors.New("delta: already closed")
-	errNeedOneReader          = errors.New("delta: need exactly one reader")
-	errInsufficientProperties = errors.New("delta: not enough properties")
+	ErrAlreadyClosed          = errors.New("delta: already closed")
+	ErrNeedOneReader          = errors.New("delta: need exactly one reader")
+	ErrInsufficientProperties = errors.New("delta: not enough properties")
 )
 
 func (rc *readCloser) Close() error {
 	if rc.rc == nil {
-		return errAlreadyClosed
+		return ErrAlreadyClosed
 	}
 
 	if err := rc.rc.Close(); err != nil {
@@ -39,7 +39,7 @@ func (rc *readCloser) Close() error {
 
 func (rc *readCloser) Read(p []byte) (int, error) {
 	if rc.rc == nil {
-		return 0, errAlreadyClosed
+		return 0, ErrAlreadyClosed
 	}
 
 	n, err := rc.rc.Read(p)
@@ -75,11 +75,11 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 // NewReader returns a new Delta io.ReadCloser.
 func NewReader(p []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
 	if len(readers) != 1 {
-		return nil, errNeedOneReader
+		return nil, ErrNeedOneReader
 	}
 
 	if len(p) != 1 {
-		return nil, errInsufficientProperties
+		return nil, ErrInsufficientProperties
 	}
 
 	return &readCloser{

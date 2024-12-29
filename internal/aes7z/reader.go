@@ -11,11 +11,11 @@ import (
 )
 
 var (
-	errAlreadyClosed          = errors.New("aes7z: already closed")
-	errNeedOneReader          = errors.New("aes7z: need exactly one reader")
-	errInsufficientProperties = errors.New("aes7z: not enough properties")
-	errNoPasswordSet          = errors.New("aes7z: no password set")
-	errUnsupportedMethod      = errors.New("aes7z: unsupported compression method")
+	ErrAlreadyClosed          = errors.New("aes7z: already closed")
+	ErrNeedOneReader          = errors.New("aes7z: need exactly one reader")
+	ErrInsufficientProperties = errors.New("aes7z: not enough properties")
+	ErrNoPasswordSet          = errors.New("aes7z: no password set")
+	ErrUnsupportedMethod      = errors.New("aes7z: unsupported compression method")
 )
 
 type readCloser struct {
@@ -28,7 +28,7 @@ type readCloser struct {
 
 func (rc *readCloser) Close() error {
 	if rc.rc == nil {
-		return errAlreadyClosed
+		return ErrAlreadyClosed
 	}
 
 	if err := rc.rc.Close(); err != nil {
@@ -58,11 +58,11 @@ func (rc *readCloser) Password(p string) error {
 
 func (rc *readCloser) Read(p []byte) (int, error) {
 	if rc.rc == nil {
-		return 0, errAlreadyClosed
+		return 0, ErrAlreadyClosed
 	}
 
 	if rc.cbc == nil {
-		return 0, errNoPasswordSet
+		return 0, ErrNoPasswordSet
 	}
 
 	var block [aes.BlockSize]byte
@@ -94,16 +94,16 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 // cipher is correctly initialised.
 func NewReader(p []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
 	if len(readers) != 1 {
-		return nil, errNeedOneReader
+		return nil, ErrNeedOneReader
 	}
 
 	// Need at least two bytes initially
 	if len(p) < 2 {
-		return nil, errInsufficientProperties
+		return nil, ErrInsufficientProperties
 	}
 
 	if p[0]&0xc0 == 0 {
-		return nil, errUnsupportedMethod
+		return nil, ErrUnsupportedMethod
 	}
 
 	rc := new(readCloser)
@@ -112,7 +112,7 @@ func NewReader(p []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, erro
 	iv := p[0]>>6&1 + p[1]&0x0f
 
 	if len(p) != int(2+salt+iv) {
-		return nil, errInsufficientProperties
+		return nil, ErrInsufficientProperties
 	}
 
 	rc.salt = p[2 : 2+salt]

@@ -17,13 +17,13 @@ type readCloser struct {
 }
 
 var (
-	errAlreadyClosed = errors.New("lzma: already closed")
-	errNeedOneReader = errors.New("lzma: need exactly one reader")
+	ErrAlreadyClosed = errors.New("lzma: already closed")
+	ErrNeedOneReader = errors.New("lzma: need exactly one reader")
 )
 
 func (rc *readCloser) Close() error {
 	if rc.c == nil || rc.r == nil {
-		return errAlreadyClosed
+		return ErrAlreadyClosed
 	}
 
 	if err := rc.c.Close(); err != nil {
@@ -37,7 +37,7 @@ func (rc *readCloser) Close() error {
 
 func (rc *readCloser) Read(p []byte) (int, error) {
 	if rc.r == nil {
-		return 0, errAlreadyClosed
+		return 0, ErrAlreadyClosed
 	}
 
 	n, err := rc.r.Read(p)
@@ -51,7 +51,7 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 // NewReader returns a new LZMA io.ReadCloser.
 func NewReader(p []byte, s uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
 	if len(readers) != 1 {
-		return nil, errNeedOneReader
+		return nil, ErrNeedOneReader
 	}
 
 	h := bytes.NewBuffer(p)
