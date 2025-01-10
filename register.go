@@ -75,9 +75,7 @@ func init() {
 
 // RegisterDecompressor allows custom decompressors for a specified method ID.
 func RegisterDecompressor(method []byte, dcomp Decompressor) {
-	if _, dup := decompressors.LoadOrStore(string(method), dcomp); dup {
-		panic("decompressor already registered")
-	}
+	decompressors.Store(string(method), dcomp)
 }
 
 func decompressor(method []byte) Decompressor {
