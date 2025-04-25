@@ -210,28 +210,37 @@ func (si *streamsInfo) Folders() int {
 	return 0
 }
 
-func (si *streamsInfo) FileFolderAndSize(file int) (int, uint64) {
-	total := uint64(0)
-
+func (si *streamsInfo) FileFolderAndSize(file int) (int, uint64, uint32) {
 	var (
 		folder  int
 		streams uint64 = 1
+		crc     uint32
 	)
 
 	if si.subStreamsInfo != nil {
+		total := uint64(0)
+
 		for folder, streams = range si.subStreamsInfo.streams {
 			total += streams
 			if uint64(file) < total { //nolint:gosec
 				break
 			}
 		}
+
+		if len(si.subStreamsInfo.digest) > 0 {
+			crc = si.subStreamsInfo.digest[file]
+		}
 	}
 
 	if streams == 1 {
-		return folder, si.unpackInfo.folder[folder].size[len(si.unpackInfo.folder[folder].coder)-1]
+		if len(si.unpackInfo.digest) > 0 {
+			crc = si.unpackInfo.digest[folder]
+		}
+
+		return folder, si.unpackInfo.folder[folder].size[len(si.unpackInfo.folder[folder].coder)-1], crc
 	}
 
-	return folder, si.subStreamsInfo.size[file]
+	return folder, si.subStreamsInfo.size[file], crc
 }
 
 func (si *streamsInfo) folderOffset(folder int) int64 {

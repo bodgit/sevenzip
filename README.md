@@ -123,7 +123,7 @@ The worst scenario would likely be to extract the archive in reverse order.
 ### Detecting the wrong password
 
 It's virtually impossible to _reliably_ detect the wrong password versus some other corruption in a password protected archive.
-This is partly due to how CBC decryption works; with the wrong password you don't get any sort of decryption error, you just a stream of bytes that aren't the correct ones.
+This is partly due to how CBC decryption works; with the wrong password you don't get any sort of decryption error, you just get a stream of bytes that aren't the correct ones.
 This manifests itself when the file has been compressed _and_ encrypted; during extraction the file is decrypted and then decompressed so with the wrong password the decompression algorithm gets handed a stream which isn't valid so that's the error you see.
 
 A `sevenzip.ReadError` error type can be returned for certain operations.

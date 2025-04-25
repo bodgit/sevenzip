@@ -515,7 +515,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) (err error) {
 			}
 
 			if !fh.isEmptyStream && !fh.isEmptyFile {
-				f.folder, _ = header.streamsInfo.FileFolderAndSize(j)
+				f.folder, _, _ = header.streamsInfo.FileFolderAndSize(j)
 
 				// Make an exported copy of the folder index
 				f.Stream = f.folder
