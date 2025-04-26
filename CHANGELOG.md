@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.1](https://github.com/bodgit/sevenzip/compare/v1.6.0...v1.6.1) (2025-04-26)
+
+
+### Bug Fixes
+
+* Handle CRC being in the unpackInfo ([#346](https://github.com/bodgit/sevenzip/issues/346)) ([695062b](https://github.com/bodgit/sevenzip/commit/695062bf4652faeafbf2002dc34c48a89876fd5b))
+* Make it possible to override decompressor for existing method ([#302](https://github.com/bodgit/sevenzip/issues/302)) ([63e8b07](https://github.com/bodgit/sevenzip/commit/63e8b079422b762247664e2ff144cac49be1366a))
+
 ## [1.6.0](https://github.com/bodgit/sevenzip/compare/v1.5.2...v1.6.0) (2024-11-17)
 
 
