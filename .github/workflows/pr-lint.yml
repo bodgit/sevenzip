@@ -24,7 +24,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: marocchino/sticky-pull-request-comment@331f8f5b4215f0445d3c07b4967662a32a2d3e31 # v2.9.0
+      - uses: marocchino/sticky-pull-request-comment@67d0dec7b07ed060a405f9b2a64b8ab319fdd7db # v2.9.2
         if: always() && steps.lint_pr_title.outputs.error_message != null
         with:
           header: pr-title-lint-error
@@ -39,7 +39,7 @@ jobs:
             ${{ steps.lint_pr_title.outputs.error_message }}
             ```
 
-      - uses: marocchino/sticky-pull-request-comment@331f8f5b4215f0445d3c07b4967662a32a2d3e31 # v2.9.0
+      - uses: marocchino/sticky-pull-request-comment@67d0dec7b07ed060a405f9b2a64b8ab319fdd7db # v2.9.2
         if: steps.lint_pr_title.outputs.error_message == null
         with:
           header: pr-title-lint-error
