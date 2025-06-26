@@ -1,9 +1,9 @@
 module github.com/bodgit/sevenzip
 
-go 1.21
+go 1.22
 
 require (
-	github.com/andybalholm/brotli v1.1.1
+	github.com/andybalholm/brotli v1.2.0
 	github.com/bodgit/plumbing v1.3.0
 	github.com/bodgit/windows v1.0.1
 	github.com/hashicorp/golang-lru/v2 v2.0.7
