@@ -20,7 +20,7 @@ func (c *ppc) Convert(b []byte, encoding bool) int {
 
 	var i int
 
-	for i = 0; i < len(b) & ^(ppcAlignment-1); i += ppcAlignment {
+	for i = 0; i < len(b) & ^(ppcAlignment-1); i, c.ip = i+ppcAlignment, c.ip+ppcAlignment {
 		v := binary.BigEndian.Uint32(b[i:])
 
 		if b[i+0]&0xfc == 0x48 && b[i+3]&3 == 1 {
@@ -33,8 +33,6 @@ func (c *ppc) Convert(b []byte, encoding bool) int {
 			v &= 0x03ffffff
 			v |= 0x48000000
 		}
-
-		c.ip += uint32(ppcAlignment)
 
 		binary.BigEndian.PutUint32(b[i:], v)
 	}
