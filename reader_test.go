@@ -197,6 +197,10 @@ func TestOpenReader(t *testing.T) {
 			file: "COMPRESS-492.7z",
 			err:  sevenzip.ErrMissingUnpackInfo,
 		},
+		{
+			name: "arm64",
+			file: "arm64.7z",
+		},
 	}
 
 	for _, table := range tables {
@@ -656,4 +660,8 @@ func BenchmarkARM(b *testing.B) {
 
 func BenchmarkSPARC(b *testing.B) {
 	benchmarkArchive(b, "sparc.7z", "", true)
+}
+
+func BenchmarkARM64(b *testing.B) {
+	benchmarkArchive(b, "arm64.7z", "", true)
 }
