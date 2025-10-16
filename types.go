@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/bits"
 	"time"
 
@@ -50,7 +51,24 @@ var (
 	errUnexpectedID           = errors.New("sevenzip: unexpected id")
 	errMissingUnpackInfo      = errors.New("sevenzip: missing unpack info")
 	errWrongNumberOfFilenames = errors.New("sevenzip: wrong number of filenames")
+	errUint64NonZero          = errors.New("sevenzip: uint64 value must be non-zero")
+	errUint64TooLarge         = errors.New("sevenzip: uint64 value too large")
+	errInvalidBindPair        = errors.New("sevenzip: invalid bind pair")
 )
+
+func checkUint64(v uint64, nonZero bool) error {
+	if nonZero && v == 0 {
+		return errUint64NonZero
+	}
+
+	// This is basically to stop make() panicking, might be better
+	// heuristics but should be sufficient for now
+	if v > math.MaxUint32 {
+		return errUint64TooLarge
+	}
+
+	return nil
+}
 
 func readUint64(r io.ByteReader) (uint64, error) {
 	b, err := r.ReadByte()
@@ -77,7 +95,26 @@ func readUint64(r io.ByteReader) (uint64, error) {
 	return v, nil
 }
 
+// readUint64Bounded is for values that are ultimately used as the length
+// argument of a slice. Fuzzing can generate lengths that will cause a panic.
+func readUint64Bounded(r io.ByteReader, nonZero bool) (uint64, error) {
+	v, err := readUint64(r)
+	if err != nil {
+		return 0, err
+	}
+
+	if err := checkUint64(v, nonZero); err != nil {
+		return 0, err
+	}
+
+	return v, nil
+}
+
 func readBool(r io.ByteReader, count uint64) ([]bool, error) {
+	if err := checkUint64(count, true); err != nil {
+		return nil, err
+	}
+
 	defined := make([]bool, count)
 
 	var b, mask byte
@@ -101,6 +138,10 @@ func readBool(r io.ByteReader, count uint64) ([]bool, error) {
 }
 
 func readOptionalBool(r io.ByteReader, count uint64) ([]bool, error) {
+	if err := checkUint64(count, true); err != nil {
+		return nil, err
+	}
+
 	all, err := r.ReadByte()
 	if err != nil {
 		return nil, fmt.Errorf("readOptionalBool: ReadByte error: %w", err)
@@ -119,6 +160,10 @@ func readOptionalBool(r io.ByteReader, count uint64) ([]bool, error) {
 }
 
 func readSizes(r io.ByteReader, count uint64) ([]uint64, error) {
+	if err := checkUint64(count, true); err != nil {
+		return nil, err
+	}
+
 	sizes := make([]uint64, count)
 
 	for i := uint64(0); i < count; i++ {
@@ -134,6 +179,10 @@ func readSizes(r io.ByteReader, count uint64) ([]uint64, error) {
 }
 
 func readCRC(r util.Reader, count uint64) ([]uint32, error) {
+	if err := checkUint64(count, true); err != nil {
+		return nil, err
+	}
+
 	defined, err := readOptionalBool(r, count)
 	if err != nil {
 		return nil, err
@@ -163,7 +212,7 @@ func readPackInfo(r util.Reader) (*packInfo, error) {
 		return nil, err
 	}
 
-	p.streams, err = readUint64(r)
+	p.streams, err = readUint64Bounded(r, true)
 	if err != nil {
 		return nil, err
 	}
@@ -221,12 +270,12 @@ func readCoder(r util.Reader) (*coder, error) {
 	}
 
 	if v&0x10 != 0 {
-		c.in, err = readUint64(r)
+		c.in, err = readUint64Bounded(r, true)
 		if err != nil {
 			return nil, err
 		}
 
-		c.out, err = readUint64(r)
+		c.out, err = readUint64Bounded(r, true)
 		if err != nil {
 			return nil, err
 		}
@@ -235,7 +284,7 @@ func readCoder(r util.Reader) (*coder, error) {
 	}
 
 	if v&0x20 != 0 {
-		size, err := readUint64(r)
+		size, err := readUint64Bounded(r, true)
 		if err != nil {
 			return nil, err
 		}
@@ -257,7 +306,7 @@ func readCoder(r util.Reader) (*coder, error) {
 func readFolder(r util.Reader) (*folder, error) {
 	f := new(folder)
 
-	coders, err := readUint64(r)
+	coders, err := readUint64Bounded(r, true)
 	if err != nil {
 		return nil, err
 	}
@@ -273,17 +322,29 @@ func readFolder(r util.Reader) (*folder, error) {
 		f.out += f.coder[i].out
 	}
 
+	if err := checkUint64(f.in, true); err != nil {
+		return nil, err
+	}
+
+	if err := checkUint64(f.out, true); err != nil {
+		return nil, err
+	}
+
+	if f.in < f.out {
+		return nil, errInvalidBindPair
+	}
+
 	bindPairs := f.out - 1
 
 	f.bindPair = make([]*bindPair, bindPairs)
 
 	for i := uint64(0); i < bindPairs; i++ {
-		in, err := readUint64(r)
+		in, err := readUint64Bounded(r, false)
 		if err != nil {
 			return nil, err
 		}
 
-		out, err := readUint64(r)
+		out, err := readUint64Bounded(r, false)
 		if err != nil {
 			return nil, err
 		}
@@ -327,7 +388,7 @@ func readUnpackInfo(r util.Reader) (*unpackInfo, error) {
 		return nil, errUnexpectedID
 	}
 
-	folders, err := readUint64(r)
+	folders, err := readUint64Bounded(r, true)
 	if err != nil {
 		return nil, err
 	}
@@ -371,6 +432,10 @@ func readUnpackInfo(r util.Reader) (*unpackInfo, error) {
 		total := uint64(0)
 		for _, c := range f.coder {
 			total += c.out
+		}
+
+		if err := checkUint64(total, true); err != nil {
+			return nil, err
 		}
 
 		f.size = make([]uint64, total)
@@ -435,6 +500,10 @@ func readSubStreamsInfo(r util.Reader, folder []*folder) (*subStreamsInfo, error
 	files := uint64(0)
 	for _, v := range s.streams {
 		files += v
+	}
+
+	if err := checkUint64(files, false); err != nil {
+		return nil, err
 	}
 
 	if id == idSize {
@@ -535,6 +604,10 @@ func readStreamsInfo(r util.Reader) (*streamsInfo, error) {
 }
 
 func readTimes(r util.Reader, count uint64) ([]time.Time, error) {
+	if err := checkUint64(count, true); err != nil {
+		return nil, err
+	}
+
 	defined, err := readOptionalBool(r, count)
 	if err != nil {
 		return nil, err
@@ -592,6 +665,10 @@ func splitNull(data []byte, atEOF bool) (advance int, token []byte, err error) {
 }
 
 func readNames(r util.Reader, count, length uint64) ([]string, error) {
+	if err := checkUint64(count, true); err != nil {
+		return nil, err
+	}
+
 	external, err := r.ReadByte()
 	if err != nil {
 		return nil, fmt.Errorf("readNames: ReadByte error: %w", err)
@@ -633,6 +710,10 @@ func readNames(r util.Reader, count, length uint64) ([]string, error) {
 }
 
 func readAttributes(r util.Reader, count uint64) ([]uint32, error) {
+	if err := checkUint64(count, true); err != nil {
+		return nil, err
+	}
+
 	defined, err := readOptionalBool(r, count)
 	if err != nil {
 		return nil, err
@@ -674,7 +755,7 @@ func readAttributes(r util.Reader, count uint64) ([]uint32, error) {
 func readFilesInfo(r util.Reader) (*filesInfo, error) {
 	f := new(filesInfo)
 
-	files, err := readUint64(r)
+	files, err := readUint64Bounded(r, true)
 	if err != nil {
 		return nil, err
 	}

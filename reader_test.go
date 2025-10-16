@@ -1,6 +1,7 @@
 package sevenzip_test
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"hash"
@@ -423,6 +424,20 @@ func TestFS(t *testing.T) {
 	if err := fstest.TestFS(r, "Asm/arm/7zCrcOpt.asm", "bin/x64/7zr.exe"); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func FuzzNewReaderWithPassword(f *testing.F) {
+	b, err := os.ReadFile(filepath.Join("testdata", "copy.7z"))
+	if err != nil {
+		f.Fatal(err)
+	}
+
+	f.Add(b)
+
+	// At this point we only care about preventing the code from panicking
+	f.Fuzz(func(_ *testing.T, data []byte) {
+		_, _ = sevenzip.NewReaderWithPassword(bytes.NewReader(data), int64(len(data)), "")
+	})
 }
 
 func ExampleOpenReader() {
