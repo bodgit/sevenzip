@@ -69,7 +69,7 @@ func newMockFileInfo(tb testing.TB) *mockFileInfo {
 	tb.Helper()
 
 	mock := new(mockFileInfo)
-	mock.Mock.Test(tb)
+	mock.Test(tb)
 
 	tb.Cleanup(func() { mock.AssertExpectations(tb) })
 
@@ -174,7 +174,7 @@ func newMockFile(tb testing.TB) *mockFile {
 	tb.Helper()
 
 	mock := new(mockFile)
-	mock.Mock.Test(tb)
+	mock.Test(tb)
 
 	tb.Cleanup(func() { mock.AssertExpectations(tb) })
 
@@ -269,7 +269,7 @@ func newMockFs(tb testing.TB) *mockFs {
 	tb.Helper()
 
 	mock := new(mockFs)
-	mock.Mock.Test(tb)
+	mock.Test(tb)
 
 	tb.Cleanup(func() { mock.AssertExpectations(tb) })
 
@@ -390,8 +390,6 @@ func TestOpenReader(t *testing.T) {
 	}
 
 	for _, table := range tables {
-		table := table
-
 		t.Run(table.name, func(t *testing.T) {
 			t.Parallel()
 

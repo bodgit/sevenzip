@@ -147,7 +147,7 @@ func (fr *fileReader) Close() error {
 // Open returns an [io.ReadCloser] that provides access to the [File]'s
 // contents. Multiple files may be read concurrently.
 func (f *File) Open() (io.ReadCloser, error) {
-	if f.FileHeader.isEmptyStream || f.FileHeader.isEmptyFile {
+	if f.isEmptyStream || f.isEmptyFile {
 		// Return empty reader for directory or empty file
 		return io.NopCloser(bytes.NewReader(nil)), nil
 	}
@@ -309,9 +309,36 @@ func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
 	return NewReaderWithPassword(r, size, "")
 }
 
+// Open opens the named file in the 7-zip archive, using the semantics of
+// [fs.FS.Open]: paths are always slash separated, with no leading / or ../
+// elements.
+func (z *Reader) Open(name string) (iofs.File, error) {
+	z.initFileList()
+
+	if !iofs.ValidPath(name) {
+		return nil, &iofs.PathError{Op: "open", Path: name, Err: iofs.ErrInvalid}
+	}
+
+	e := z.openLookup(name)
+	if e == nil {
+		return nil, &iofs.PathError{Op: "open", Path: name, Err: iofs.ErrNotExist}
+	}
+
+	if e.isDir {
+		return &openDir{e, z.openReadDir(name), 0}, nil
+	}
+
+	rc, err := e.file.Open()
+	if err != nil {
+		return nil, err
+	}
+
+	return rc.(iofs.File), nil //nolint:forcetypeassert
+}
+
 func (z *Reader) folderReader(si *streamsInfo, f int) (*folderReadCloser, uint32, bool, error) {
 	// Create a SectionReader covering all of the streams data
-	return si.FolderReader(io.NewSectionReader(z.r, z.start, z.end-z.start), f, z.p)
+	return si.folderReader(io.NewSectionReader(z.r, z.start, z.end-z.start), f, z.p)
 }
 
 const (
@@ -510,8 +537,8 @@ func (z *Reader) init(r io.ReaderAt, size int64) (err error) {
 			f.zip = z
 			f.FileHeader = fh
 
-			if f.FileHeader.FileInfo().IsDir() && !strings.HasSuffix(f.FileHeader.Name, "/") {
-				f.FileHeader.Name += "/"
+			if f.FileHeader.FileInfo().IsDir() && !strings.HasSuffix(f.Name, "/") {
+				f.Name += "/"
 			}
 
 			if !fh.isEmptyStream && !fh.isEmptyFile {
@@ -593,18 +620,6 @@ type fileInfoDirEntry interface {
 	iofs.DirEntry
 }
 
-func (e *fileListEntry) stat() (fileInfoDirEntry, error) {
-	if e.isDup {
-		return nil, errors.New(e.name + ": duplicate entries in 7-zip file") //nolint:err113
-	}
-
-	if !e.isDir {
-		return headerFileInfo{&e.file.FileHeader}, nil
-	}
-
-	return e, nil
-}
-
 func (e *fileListEntry) Name() string {
 	_, elem := split(e.name)
 
@@ -622,10 +637,22 @@ func (e *fileListEntry) ModTime() time.Time {
 		return time.Time{}
 	}
 
-	return e.file.FileHeader.Modified.UTC()
+	return e.file.Modified.UTC()
 }
 
 func (e *fileListEntry) Info() (iofs.FileInfo, error) { return e, nil }
+
+func (e *fileListEntry) stat() (fileInfoDirEntry, error) {
+	if e.isDup {
+		return nil, errors.New(e.name + ": duplicate entries in 7-zip file") //nolint:err113
+	}
+
+	if !e.isDir {
+		return headerFileInfo{&e.file.FileHeader}, nil
+	}
+
+	return e, nil
+}
 
 func toValidName(name string) string {
 	name = strings.ReplaceAll(name, `\`, `/`)
@@ -710,33 +737,6 @@ func fileEntryLess(x, y string) bool {
 	ydir, yelem := split(y)
 
 	return xdir < ydir || xdir == ydir && xelem < yelem
-}
-
-// Open opens the named file in the 7-zip archive, using the semantics of
-// [fs.FS.Open]: paths are always slash separated, with no leading / or ../
-// elements.
-func (z *Reader) Open(name string) (iofs.File, error) {
-	z.initFileList()
-
-	if !iofs.ValidPath(name) {
-		return nil, &iofs.PathError{Op: "open", Path: name, Err: iofs.ErrInvalid}
-	}
-
-	e := z.openLookup(name)
-	if e == nil {
-		return nil, &iofs.PathError{Op: "open", Path: name, Err: iofs.ErrNotExist}
-	}
-
-	if e.isDir {
-		return &openDir{e, z.openReadDir(name), 0}, nil
-	}
-
-	rc, err := e.file.Open()
-	if err != nil {
-		return nil, err
-	}
-
-	return rc.(iofs.File), nil //nolint:forcetypeassert
 }
 
 func split(name string) (dir, elem string) {

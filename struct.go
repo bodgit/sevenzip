@@ -258,13 +258,13 @@ func (si *streamsInfo) folderOffset(folder int) int64 {
 }
 
 //nolint:cyclop,funlen,lll
-func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) (*folderReadCloser, uint32, bool, error) {
+func (si *streamsInfo) folderReader(r io.ReaderAt, folder int, password string) (*folderReadCloser, uint32, bool, error) {
 	f := si.unpackInfo.folder[folder]
 	in := make([]io.ReadCloser, f.in)
 	out := make([]io.ReadCloser, f.out)
 
 	packedOffset := 0
-	for i := 0; i < folder; i++ {
+	for i := range folder {
 		packedOffset += len(si.unpackInfo.folder[i].packed)
 	}
 
@@ -319,7 +319,7 @@ func (si *streamsInfo) FolderReader(r io.ReaderAt, folder int, password string) 
 
 	unbound := make([]uint64, 0, f.out)
 
-	for i := uint64(0); i < f.out; i++ {
+	for i := range f.out {
 		if bp := f.findOutBindPair(i); bp == nil {
 			unbound = append(unbound, i)
 		}
