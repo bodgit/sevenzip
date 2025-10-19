@@ -166,7 +166,7 @@ func (rc *readCloser) decode(i int) (bool, error) {
 	return true, nil
 }
 
-//nolint:cyclop,funlen
+//nolint:cyclop
 func (rc *readCloser) read() error {
 	var (
 		b   byte

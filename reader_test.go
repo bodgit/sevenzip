@@ -200,8 +200,6 @@ func TestOpenReader(t *testing.T) {
 	}
 
 	for _, table := range tables {
-		table := table
-
 		t.Run(table.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -273,8 +271,6 @@ func TestOpenReaderWithPassword(t *testing.T) {
 	}
 
 	for _, table := range tables {
-		table := table
-
 		t.Run(table.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -364,8 +360,6 @@ func TestNewReader(t *testing.T) {
 	}
 
 	for _, table := range tables {
-		table := table
-
 		t.Run(table.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -455,7 +449,7 @@ func ExampleOpenReader() {
 func benchmarkArchiveParallel(b *testing.B, file string) {
 	b.Helper()
 
-	for n := 0; n < b.N; n++ {
+	for range b.N {
 		r, err := sevenzip.OpenReader(filepath.Join("testdata", file))
 		if err != nil {
 			b.Fatal(err)
@@ -481,8 +475,6 @@ func benchmarkArchiveParallel(b *testing.B, file string) {
 		eg.SetLimit(runtime.NumCPU())
 
 		for stream := range streams {
-			stream := stream
-
 			eg.Go(func() error {
 				return extractArchive(b, &r.Reader, stream, crc32.NewIEEE(), reader, true)
 			})
@@ -499,7 +491,7 @@ func benchmarkArchiveParallel(b *testing.B, file string) {
 func benchmarkArchiveNaiveParallel(b *testing.B, file string, workers int) {
 	b.Helper()
 
-	for n := 0; n < b.N; n++ {
+	for range b.N {
 		r, err := sevenzip.OpenReader(filepath.Join("testdata", file))
 		if err != nil {
 			b.Fatal(err)
@@ -519,8 +511,6 @@ func benchmarkArchiveNaiveParallel(b *testing.B, file string, workers int) {
 		eg.SetLimit(workers)
 
 		for _, f := range r.File {
-			f := f
-
 			eg.Go(func() (err error) {
 				var rc io.ReadCloser
 
@@ -550,7 +540,7 @@ func benchmarkArchive(b *testing.B, file, password string, optimised bool) {
 
 	h := crc32.NewIEEE()
 
-	for n := 0; n < b.N; n++ {
+	for range b.N {
 		r, err := sevenzip.OpenReaderWithPassword(filepath.Join("testdata", file), password)
 		if err != nil {
 			b.Fatal(err)
