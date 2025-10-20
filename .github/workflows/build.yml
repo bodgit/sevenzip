@@ -48,7 +48,7 @@ jobs:
         run: go test -v -coverprofile=cover.out ./...
 
       - name: Send coverage
-        uses: shogo82148/actions-goveralls@e6875f831db61e6abffbd8df91a2eb6cd24b46c9 # v1.9.1
+        uses: shogo82148/actions-goveralls@25f5320d970fb565100cf1993ada29be1bb196a1 # v1.10.0
         with:
           path-to-profile: cover.out
           flag-name: Go-${{ matrix.go }}
@@ -62,6 +62,6 @@ jobs:
       checks: write
 
     steps:
-      - uses: shogo82148/actions-goveralls@e6875f831db61e6abffbd8df91a2eb6cd24b46c9 # v1.9.1
+      - uses: shogo82148/actions-goveralls@25f5320d970fb565100cf1993ada29be1bb196a1 # v1.10.0
         with:
           parallel-finished: true
