@@ -304,7 +304,7 @@ func (si *streamsInfo) folderReader(r io.ReaderAt, folder int, password string) 
 			err         error
 		)
 
-		out[output], isEncrypted, err = f.coderReader(in[input:input+c.in], uint64(i), password) //nolint:gosec
+		out[output], isEncrypted, err = f.coderReader(in[input:input+c.in], uint64(i), password)
 		if err != nil {
 			return nil, 0, hasEncryption, err
 		}
