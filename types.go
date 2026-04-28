@@ -404,7 +404,7 @@ func readUnpackInfo(r util.Reader) (*unpackInfo, error) {
 	return u, nil
 }
 
-//nolint:cyclop,funlen
+//nolint:cyclop,funlen,gocognit
 func readSubStreamsInfo(r util.Reader, folder []*folder) (*subStreamsInfo, error) {
 	s := new(subStreamsInfo)
 
@@ -442,6 +442,10 @@ func readSubStreamsInfo(r util.Reader, folder []*folder) (*subStreamsInfo, error
 		k := 0
 
 		for i := range s.streams {
+			if s.streams[i] == 0 {
+				continue
+			}
+
 			total := uint64(0)
 
 			for j := uint64(1); j < s.streams[i]; j++ {
