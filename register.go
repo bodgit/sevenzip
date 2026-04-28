@@ -69,6 +69,8 @@ func init() {
 	RegisterDecompressor([]byte{0x04, 0xf7, 0x11, 0x04}, Decompressor(lz4.NewReader))
 	// AES-CBC-256 & SHA-256
 	RegisterDecompressor([]byte{0x06, 0xf1, 0x07, 0x01}, Decompressor(aes7z.NewReader))
+	// ARM64
+	RegisterDecompressor([]byte{0x0a}, Decompressor(bra.NewARM64Reader))
 	// LZMA2
 	RegisterDecompressor([]byte{0x21}, Decompressor(lzma2.NewReader))
 }
