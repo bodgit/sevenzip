@@ -77,7 +77,7 @@ func (c *bcj) Convert(b []byte, encoding bool) int {
 
 			if mask != 0 {
 				sh := mask & 6 << 2
-				if test86MSByte(byte(v >> sh)) {
+				if test86MSByte(byte(v >> sh)) { //nolint:gosec
 					v ^= (uint32(0x100) << sh) - 1
 					if encoding {
 						v += cur

@@ -1,3 +1,4 @@
+---
 name: Track releases
 
 on:
@@ -5,15 +6,11 @@ on:
     branches:
       - main
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   release-please:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Run release-please
-        uses: google-github-actions/release-please-action@e4dc86ba9405554aeba3c6bb2d169500e7d3b4ee # v4.1.1
-        with:
-          token: ${{ secrets.RELEASE_TOKEN }}
+    name: Run release-please
+    uses: bodgit/workflows/.github/workflows/release.yml@90676a57fa5e7bb53dbea051211751b225ee60ca # v1.0.1
+    secrets:
+      RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
