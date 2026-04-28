@@ -1,6 +1,6 @@
 module github.com/bodgit/sevenzip
 
-go 1.24
+go 1.24.0
 
 require (
 	github.com/andybalholm/brotli v1.2.1
@@ -12,9 +12,9 @@ require (
 	github.com/spf13/afero v1.15.0
 	github.com/stretchr/testify v1.11.1
 	github.com/ulikunitz/xz v0.5.15
-	go4.org v0.0.0-20200411211856-f5505b9728dd
-	golang.org/x/sync v0.16.0
-	golang.org/x/text v0.28.0
+	go4.org v0.0.0-20260112195520-a5071408f32f
+	golang.org/x/sync v0.19.0
+	golang.org/x/text v0.32.0
 )
 
 require (
