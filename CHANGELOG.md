@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.6.2](https://github.com/bodgit/sevenzip/compare/v1.6.1...v1.6.2) (2026-04-28)
+
+
+### Bug Fixes
+
+* Add ARM64 filter support ([#395](https://github.com/bodgit/sevenzip/issues/395)) ([8648ac7](https://github.com/bodgit/sevenzip/commit/8648ac720dde1f74f152548e85fb8e3bd24c3e0a))
+* **deps:** update go4.org digest to a507140 ([#422](https://github.com/bodgit/sevenzip/issues/422)) ([367448a](https://github.com/bodgit/sevenzip/commit/367448ab2194081b2a36a702e210124e0d82a9be))
+* **deps:** update module github.com/andybalholm/brotli to v1.2.1 ([#425](https://github.com/bodgit/sevenzip/issues/425)) ([63d4609](https://github.com/bodgit/sevenzip/commit/63d4609e64a621b26cee6e35cce72bef053fea35))
+* **deps:** update module github.com/klauspost/compress to v1.18.5 ([#426](https://github.com/bodgit/sevenzip/issues/426)) ([c01c118](https://github.com/bodgit/sevenzip/commit/c01c1187479ec2c563e418213347d31493905365))
+* **deps:** update module github.com/pierrec/lz4/v4 to v4.1.26 ([#427](https://github.com/bodgit/sevenzip/issues/427)) ([189b20d](https://github.com/bodgit/sevenzip/commit/189b20d6602bbe0d796800233f2e21520b746aa6))
+* **deps:** update module github.com/spf13/afero to v1.15.0 ([#431](https://github.com/bodgit/sevenzip/issues/431)) ([960c916](https://github.com/bodgit/sevenzip/commit/960c91607dc9f4a8e911d15b770a7c394e2706c4))
+* **deps:** update module golang.org/x/sync to v0.20.0 ([#432](https://github.com/bodgit/sevenzip/issues/432)) ([aa1e391](https://github.com/bodgit/sevenzip/commit/aa1e3915fa76dab329aa3aa0f47315ead4c9ffa1))
+* **deps:** update module golang.org/x/text to v0.36.0 ([#433](https://github.com/bodgit/sevenzip/issues/433)) ([dbed104](https://github.com/bodgit/sevenzip/commit/dbed1043297a5cceaff96c5aaa7ec52c4989e73e))
+* Handle streams with no files ([#401](https://github.com/bodgit/sevenzip/issues/401)) ([fe03793](https://github.com/bodgit/sevenzip/commit/fe0379373743f88bc62bef15661bf1125666ffdc))
+* Prevent panics discovered by fuzzing ([#402](https://github.com/bodgit/sevenzip/issues/402)) ([740fcf9](https://github.com/bodgit/sevenzip/commit/740fcf91a86fb010fd60a11456743e911de893f5))
+
 ## [1.6.1](https://github.com/bodgit/sevenzip/compare/v1.6.0...v1.6.1) (2025-04-26)
 
 
