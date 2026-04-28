@@ -20,3 +20,5 @@ jobs:
   golang-checks:
     name: Golang checks
     uses: bodgit/workflows/.github/workflows/golang-checks.yml@90676a57fa5e7bb53dbea051211751b225ee60ca # v1.0.1
+    with:
+      go_test_args: '-v -coverpkg=./...'
