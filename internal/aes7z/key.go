@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -19,7 +20,18 @@ type cacheKey struct {
 	salt     string // []byte isn't comparable
 }
 
-const cacheSize = 10
+const (
+	cacheSize = 10
+
+	// maxCyclesPower caps the KDF iteration exponent to prevent CPU exhaustion
+	// from malicious archives. Standard 7-zip always uses 19 (≈500K rounds,
+	// ~10ms). A cap of 24 (≈16M rounds, ~250ms) provides 32× headroom above
+	// the standard while keeping the worst-case derivation time bounded.
+	// The special value 0x3f bypasses hashing entirely and is not affected.
+	maxCyclesPower = 24
+)
+
+var errCyclesPowerTooLarge = errors.New("aes7z: cycles power exceeds maximum")
 
 //nolint:gochecknoglobals
 var once = sync.OnceValues(func() (*lru.Cache[cacheKey, []byte], error) {
@@ -51,8 +63,13 @@ func calculateKey(password string, cycles int, salt []byte) ([]byte, error) {
 
 	key := make([]byte, sha256.Size)
 	if cycles == 0x3f {
+		// Raw mode: key is derived directly from salt+password, no hashing.
 		copy(key, b.Bytes())
 	} else {
+		if cycles > maxCyclesPower {
+			return nil, fmt.Errorf("%w: %d > %d", errCyclesPowerTooLarge, cycles, maxCyclesPower)
+		}
+
 		h := sha256.New()
 		for i := range uint64(1 << cycles) {
 			// These will never error
