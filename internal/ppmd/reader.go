@@ -1,11 +1,19 @@
+// Package ppmd implements the PPMD filter.
 package ppmd
 
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/stangelandcl/ppmd"
+)
+
+var (
+	errAlreadyClosed          = errors.New("ppmd: already closed")
+	errNeedOneReader          = errors.New("ppmd: need exactly one reader")
+	errInsufficientProperties = errors.New("ppmd: not enough properties")
 )
 
 type readCloser struct {
@@ -20,33 +28,42 @@ func (rc *readCloser) Close() error {
 		rc.c, rc.r = nil, nil
 	}
 
-	return err
+	if err != nil {
+		return fmt.Errorf("ppmd: error closing: %w", err)
+	}
+
+	return nil
 }
 
 func (rc *readCloser) Read(p []byte) (int, error) {
 	if rc.r == nil {
-		return 0, errors.New("ppmd: Read after Close")
+		return 0, errAlreadyClosed
 	}
 
-	return rc.r.Read(p)
+	n, err := rc.r.Read(p)
+	if err != nil && !errors.Is(err, io.EOF) {
+		err = fmt.Errorf("ppmd: error reading: %w", err)
+	}
+
+	return n, err
 }
 
 // NewReader returns a new PPMD io.ReadCloser.
 func NewReader(p []byte, uncompressedSize uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
 	if len(readers) != 1 {
-		return nil, errors.New("ppmd: need exactly one reader")
+		return nil, errNeedOneReader
 	}
 
 	if len(p) != 5 {
-		return nil, errors.New("ppmd: needs exactly five property bytes")
+		return nil, errInsufficientProperties
 	}
 
 	order := p[0]
 	memory := binary.LittleEndian.Uint32(p[1:])
 
-	pr, err := ppmd.NewH7zReader(readers[0], int(order), int(memory), int(uncompressedSize))
+	pr, err := ppmd.NewH7zReader(readers[0], int(order), int(memory), int(uncompressedSize)) //nolint:gosec
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ppmd: error creating reader: %w", err)
 	}
 
 	return &readCloser{

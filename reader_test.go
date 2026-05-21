@@ -1,3 +1,4 @@
+//nolint:goconst
 package sevenzip_test
 
 import (

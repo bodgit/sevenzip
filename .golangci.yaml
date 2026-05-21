@@ -100,6 +100,11 @@ linters:
     - wsl
     - zerologlint
   exclusions:
+    rules:
+      - linters:
+          - revive
+        path: 'internal/util/*'
+        text: 'var-naming: avoid meaningless package names'
     generated: lax
     paths:
       - third_party$
