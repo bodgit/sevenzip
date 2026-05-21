@@ -27,12 +27,6 @@ func reader(r io.Reader) io.Reader {
 	return r
 }
 
-const (
-	noHeaderCompression = "no header compression"
-	t0Filename          = "t0.7z"
-	testPassword        = "password"
-)
-
 var errCRCMismatch = errors.New("CRC doesn't match")
 
 func extractFile(tb testing.TB, r io.Reader, h hash.Hash, f *sevenzip.File) error {
@@ -101,8 +95,8 @@ func TestOpenReader(t *testing.T) {
 		err        error
 	}{
 		{
-			name: noHeaderCompression,
-			file: t0Filename,
+			name: "no header compression",
+			file: "t0.7z",
 		},
 		{
 			name: "with header compression",
@@ -260,24 +254,24 @@ func TestOpenReaderWithPassword(t *testing.T) {
 		name, file, password string
 	}{
 		{
-			name:     noHeaderCompression,
+			name:     "no header compression",
 			file:     "t2.7z",
-			password: testPassword,
+			password: "password",
 		},
 		{
 			name:     "with header compression",
 			file:     "t3.7z",
-			password: testPassword,
+			password: "password",
 		},
 		{
 			name:     "unencrypted headers compressed files",
 			file:     "t4.7z",
-			password: testPassword,
+			password: "password",
 		},
 		{
 			name:     "unencrypted headers uncompressed files",
 			file:     "t5.7z",
-			password: testPassword,
+			password: "password",
 		},
 		{
 			name:     "issue 75",
@@ -364,12 +358,12 @@ func TestNewReader(t *testing.T) {
 		err        error
 	}{
 		{
-			name: noHeaderCompression,
-			file: t0Filename,
+			name: "no header compression",
+			file: "t0.7z",
 		},
 		{
-			name: noHeaderCompression,
-			file: t0Filename,
+			name: "no header compression",
+			file: "t0.7z",
 			size: -1,
 			err:  sevenzip.ErrNegativeSize,
 		},
@@ -595,7 +589,7 @@ func benchmarkArchive(b *testing.B, file, password string, optimised bool) {
 }
 
 func BenchmarkAES7z(b *testing.B) {
-	benchmarkArchive(b, "aes7z.7z", testPassword, true)
+	benchmarkArchive(b, "aes7z.7z", "password", true)
 }
 
 func BenchmarkBzip2(b *testing.B) {
