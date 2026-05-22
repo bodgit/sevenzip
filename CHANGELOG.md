@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.6.4](https://github.com/bodgit/sevenzip/compare/v1.6.3...v1.6.4) (2026-05-22)
+
+
+### Bug Fixes
+
+* **lzma2:** prevent undefined bit shift overflow in dictionary calculation ([#456](https://github.com/bodgit/sevenzip/issues/456)) ([8d9854b](https://github.com/bodgit/sevenzip/commit/8d9854bb7d60fe32cf2cd82c59db1ff60d0c875b))
+* Override ppmd package with 32-bit fix ([#458](https://github.com/bodgit/sevenzip/issues/458)) ([38c26cd](https://github.com/bodgit/sevenzip/commit/38c26cddc07f138dec12d6b6adbd8a6186673736)), closes [#457](https://github.com/bodgit/sevenzip/issues/457)
+* **types:** prevent implicit 32-bit overflow panic and OOM DoS in checkUint64 ([#453](https://github.com/bodgit/sevenzip/issues/453)) ([c9e301e](https://github.com/bodgit/sevenzip/commit/c9e301ea8886d9c6068d8662aed751dfd324acb1))
+
 ## [1.6.3](https://github.com/bodgit/sevenzip/compare/v1.6.2...v1.6.3) (2026-05-22)
 
 
