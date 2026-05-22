@@ -39,7 +39,7 @@ linters:
     - gocyclo
     - godot
     - goheader
-    - gomoddirectives
+    #- gomoddirectives
     - gomodguard
     - goprintffuncname
     - gosec
