@@ -18,6 +18,7 @@ var (
 	errAlreadyClosed          = errors.New("lzma2: already closed")
 	errNeedOneReader          = errors.New("lzma2: need exactly one reader")
 	errInsufficientProperties = errors.New("lzma2: not enough properties")
+	errInvalidProperties      = errors.New("lzma2: invalid properties")
 )
 
 func (rc *readCloser) Close() error {
@@ -55,6 +56,10 @@ func NewReader(p []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, erro
 
 	if len(p) != 1 {
 		return nil, errInsufficientProperties
+	}
+
+	if p[0] > 40 {
+		return nil, errInvalidProperties
 	}
 
 	config := lzma.Reader2Config{
