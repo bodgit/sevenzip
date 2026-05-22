@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.6.3](https://github.com/bodgit/sevenzip/compare/v1.6.2...v1.6.3) (2026-05-22)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/klauspost/compress to v1.18.6 ([#441](https://github.com/bodgit/sevenzip/issues/441)) ([e76b100](https://github.com/bodgit/sevenzip/commit/e76b100e060196e0d5d32d456e3c518f7a377e0c))
+* **deps:** update module golang.org/x/text to v0.37.0 ([#446](https://github.com/bodgit/sevenzip/issues/446)) ([fa85316](https://github.com/bodgit/sevenzip/commit/fa85316bcfeeadfc71f3b28e456dec34f8402962))
+* ppmd support ([#451](https://github.com/bodgit/sevenzip/issues/451)) ([f07faff](https://github.com/bodgit/sevenzip/commit/f07fafff0ca6d416b2455c3d7cbfabf74ffe2679))
+* protect against specially crafted archives setting high AES cycles ([#448](https://github.com/bodgit/sevenzip/issues/448)) ([ec43e2b](https://github.com/bodgit/sevenzip/commit/ec43e2b9539052c77c5dbc804534887096cd5c6a))
+
 ## [1.6.2](https://github.com/bodgit/sevenzip/compare/v1.6.1...v1.6.2) (2026-04-28)
 
 
