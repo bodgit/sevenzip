@@ -1,4 +1,3 @@
-//nolint:goconst
 package sevenzip_test
 
 import (
@@ -21,6 +20,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
+)
+
+const (
+	testNoHeaderCompression = "no header compression"
+	testPassword            = "password"
+	testT07z                = "t0.7z"
 )
 
 func reader(r io.Reader) io.Reader {
@@ -95,8 +100,8 @@ func TestOpenReader(t *testing.T) {
 		err        error
 	}{
 		{
-			name: "no header compression",
-			file: "t0.7z",
+			name: testNoHeaderCompression,
+			file: testT07z,
 		},
 		{
 			name: "with header compression",
@@ -254,24 +259,24 @@ func TestOpenReaderWithPassword(t *testing.T) {
 		name, file, password string
 	}{
 		{
-			name:     "no header compression",
+			name:     testNoHeaderCompression,
 			file:     "t2.7z",
-			password: "password",
+			password: testPassword,
 		},
 		{
 			name:     "with header compression",
 			file:     "t3.7z",
-			password: "password",
+			password: testPassword,
 		},
 		{
 			name:     "unencrypted headers compressed files",
 			file:     "t4.7z",
-			password: "password",
+			password: testPassword,
 		},
 		{
 			name:     "unencrypted headers uncompressed files",
 			file:     "t5.7z",
-			password: "password",
+			password: testPassword,
 		},
 		{
 			name:     "issue 75",
@@ -358,12 +363,12 @@ func TestNewReader(t *testing.T) {
 		err        error
 	}{
 		{
-			name: "no header compression",
-			file: "t0.7z",
+			name: testNoHeaderCompression,
+			file: testT07z,
 		},
 		{
-			name: "no header compression",
-			file: "t0.7z",
+			name: testNoHeaderCompression,
+			file: testT07z,
 			size: -1,
 			err:  sevenzip.ErrNegativeSize,
 		},
@@ -589,7 +594,7 @@ func benchmarkArchive(b *testing.B, file, password string, optimised bool) {
 }
 
 func BenchmarkAES7z(b *testing.B) {
-	benchmarkArchive(b, "aes7z.7z", "password", true)
+	benchmarkArchive(b, "aes7z.7z", testPassword, true)
 }
 
 func BenchmarkBzip2(b *testing.B) {
