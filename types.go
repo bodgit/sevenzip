@@ -61,9 +61,11 @@ func checkUint64(v uint64, nonZero bool) error {
 		return errUint64NonZero
 	}
 
-	// This is basically to stop make() panicking, might be better
-	// heuristics but should be sufficient for now
-	if v > math.MaxUint32 {
+	// Ensure the value does not exceed math.MaxInt to prevent implicit
+	// conversion panics when passed to make() on 32-bit architectures,
+	// and limit it to math.MaxUint32 to prevent slice allocation panics
+	// on 64-bit architectures.
+	if v > uint64(math.MaxInt) || v > math.MaxUint32 {
 		return errUint64TooLarge
 	}
 
@@ -115,10 +117,13 @@ func readBool(r io.ByteReader, count uint64) ([]bool, error) {
 		return nil, err
 	}
 
-	defined := make([]bool, count)
+	// Preallocate with a maximum initial capacity of 1024 to prevent memory DoS
+	// on invalid high counts. Growth via append has negligible performance impact
+	// because 7z decompression CPU cycles dominate total execution time.
+	defined := make([]bool, 0, min(count, 1024))
 
 	var b, mask byte
-	for i := range defined {
+	for range count {
 		if mask == 0 {
 			var err error
 
@@ -130,7 +135,7 @@ func readBool(r io.ByteReader, count uint64) ([]bool, error) {
 			mask = 0x80
 		}
 
-		defined[i] = (b & mask) != 0
+		defined = append(defined, (b&mask) != 0)
 		mask >>= 1
 	}
 
@@ -164,15 +169,18 @@ func readSizes(r io.ByteReader, count uint64) ([]uint64, error) {
 		return nil, err
 	}
 
-	sizes := make([]uint64, count)
+	// Preallocate with a maximum initial capacity of 1024 to prevent memory DoS
+	// on invalid high counts. Growth via append has negligible performance impact
+	// because 7z decompression CPU cycles dominate total execution time.
+	sizes := make([]uint64, 0, min(count, 1024))
 
-	for i := range count {
+	for range count {
 		size, err := readUint64(r)
 		if err != nil {
 			return nil, err
 		}
 
-		sizes[i] = size
+		sizes = append(sizes, size)
 	}
 
 	return sizes, nil
@@ -311,15 +319,18 @@ func readFolder(r util.Reader) (*folder, error) {
 		return nil, err
 	}
 
-	f.coder = make([]*coder, coders)
+	f.coder = make([]*coder, 0, min(coders, 16))
 
-	for i := range coders {
-		if f.coder[i], err = readCoder(r); err != nil {
+	for range coders {
+		coder, err := readCoder(r)
+		if err != nil {
 			return nil, err
 		}
 
-		f.in += f.coder[i].in
-		f.out += f.coder[i].out
+		f.coder = append(f.coder, coder)
+
+		f.in += coder.in
+		f.out += coder.out
 	}
 
 	if err := checkUint64(f.in, true); err != nil {
@@ -336,9 +347,9 @@ func readFolder(r util.Reader) (*folder, error) {
 
 	bindPairs := f.out - 1
 
-	f.bindPair = make([]*bindPair, bindPairs)
+	f.bindPair = make([]*bindPair, 0, min(bindPairs, 16))
 
-	for i := range bindPairs {
+	for range bindPairs {
 		in, err := readUint64Bounded(r, false)
 		if err != nil {
 			return nil, err
@@ -349,10 +360,10 @@ func readFolder(r util.Reader) (*folder, error) {
 			return nil, err
 		}
 
-		f.bindPair[i] = &bindPair{
+		f.bindPair = append(f.bindPair, &bindPair{
 			in:  in,
 			out: out,
-		}
+		})
 	}
 
 	f.packedStreams = f.in - bindPairs
@@ -412,12 +423,15 @@ func readUnpackInfo(r util.Reader) (*unpackInfo, error) {
 		return nil, errors.New("sevenzip: TODO readUnpackInfo external") //nolint:err113
 	}
 
-	u.folder = make([]*folder, folders)
+	u.folder = make([]*folder, 0, min(folders, 1024))
 
-	for i := range folders {
-		if u.folder[i], err = readFolder(r); err != nil {
+	for range folders {
+		folder, err := readFolder(r)
+		if err != nil {
 			return nil, err
 		}
+
+		u.folder = append(u.folder, folder)
 	}
 
 	if id, err := r.ReadByte(); err != nil || id != idCodersUnpackSize {
