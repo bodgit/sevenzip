@@ -10,15 +10,13 @@ require (
 	github.com/klauspost/compress v1.18.6
 	github.com/pierrec/lz4/v4 v4.1.26
 	github.com/spf13/afero v1.15.0
-	github.com/stangelandcl/ppmd v0.1.0
+	github.com/stangelandcl/ppmd v0.1.1
 	github.com/stretchr/testify v1.11.1
 	github.com/ulikunitz/xz v0.5.15
 	go4.org v0.0.0-20260112195520-a5071408f32f
 	golang.org/x/sync v0.20.0
 	golang.org/x/text v0.37.0
 )
-
-replace github.com/stangelandcl/ppmd v0.1.0 => github.com/bodgit/ppmd v0.0.0-20260522230604-9b76e8bd7ee8
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
