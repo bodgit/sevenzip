@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.5](https://github.com/bodgit/sevenzip/compare/v1.6.4...v1.6.5) (2026-06-03)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/pierrec/lz4/v4 to v4.1.27 ([#462](https://github.com/bodgit/sevenzip/issues/462)) ([f4764c5](https://github.com/bodgit/sevenzip/commit/f4764c59997cb819e06ae3f0f019c3ddf84d9127))
+* **deps:** update module github.com/stangelandcl/ppmd to v0.1.1 ([#459](https://github.com/bodgit/sevenzip/issues/459)) ([9ab6e10](https://github.com/bodgit/sevenzip/commit/9ab6e109dac62115ee8eb8a7c0319475e4a6e386))
+
 ## [1.6.4](https://github.com/bodgit/sevenzip/compare/v1.6.3...v1.6.4) (2026-05-22)
 
 
