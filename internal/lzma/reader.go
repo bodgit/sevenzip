@@ -26,11 +26,18 @@ func (rc *readCloser) Close() error {
 		return errAlreadyClosed
 	}
 
-	if err := rc.c.Close(); err != nil {
-		return fmt.Errorf("lzma: error closing: %w", err)
+	var errs []error
+	// Important: close the lzma.Reader to release buffers to the pool
+	if closer, ok := rc.r.(io.Closer); ok {
+		errs = append(errs, closer.Close())
 	}
+	errs = append(errs, rc.c.Close())
 
 	rc.c, rc.r = nil, nil
+
+	if err := errors.Join(errs...); err != nil {
+		return fmt.Errorf("lzma: error closing: %w", err)
+	}
 
 	return nil
 }

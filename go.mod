@@ -1,6 +1,6 @@
 module github.com/bodgit/sevenzip
 
-go 1.25.0
+go 1.25.5
 
 require (
 	github.com/andybalholm/brotli v1.2.1
@@ -24,3 +24,5 @@ require (
 	github.com/stretchr/objx v0.5.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/ulikunitz/xz => github.com/unxed/xz v0.1.5
