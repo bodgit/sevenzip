@@ -2,12 +2,12 @@
 package lzma2
 
 import (
-	xz "github.com/ulikunitz/xz"
+	xz "github.com/unxed/xz"
 	"errors"
 	"fmt"
 	"io"
 
-	"github.com/ulikunitz/xz/lzma"
+	"github.com/unxed/xz/lzma"
 )
 
 type seekReaderAt interface {

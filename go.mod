@@ -12,7 +12,7 @@ require (
 	github.com/spf13/afero v1.15.0
 	github.com/stangelandcl/ppmd v0.1.1
 	github.com/stretchr/testify v1.11.1
-	github.com/ulikunitz/xz v0.5.15
+	github.com/unxed/xz v0.1.8
 	go4.org v0.0.0-20260112195520-a5071408f32f
 	golang.org/x/sync v0.20.0
 	golang.org/x/text v0.37.0
@@ -24,5 +24,3 @@ require (
 	github.com/stretchr/objx v0.5.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/ulikunitz/xz => github.com/unxed/xz v0.1.5

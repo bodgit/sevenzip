@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/ulikunitz/xz/lzma"
+	"github.com/unxed/xz/lzma"
 )
 
 type readCloser struct {
