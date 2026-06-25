@@ -434,6 +434,30 @@ func TestFS(t *testing.T) {
 	}
 }
 
+func TestRead(t *testing.T) {
+	t.Parallel()
+
+	r, err := sevenzip.OpenReader(filepath.Join("testdata", "eof-read.7z"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() {
+		if err := r.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	file, err := r.Open("Plug 1.2/Plug 1.2.exe")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = io.ReadAll(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func FuzzNewReaderWithPassword(f *testing.F) {
 	b, err := os.ReadFile(filepath.Join("testdata", "copy.7z"))
 	if err != nil {
