@@ -43,6 +43,10 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 			return 0, fmt.Errorf("bra: error buffering: %w", err)
 		}
 
+		if rc.buf.Len() == 0 { // Buffer is empty and read closer returned EOF; no more data available
+			return 0, io.EOF
+		}
+
 		if rc.buf.Len() < rc.conv.Size() {
 			rc.n = rc.buf.Len()
 		}
