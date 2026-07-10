@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.6.5](https://github.com/bodgit/sevenzip/compare/v1.6.4...v1.6.5) (2026-07-10)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/andybalholm/brotli to v1.2.2 ([#473](https://github.com/bodgit/sevenzip/issues/473)) ([0ba424c](https://github.com/bodgit/sevenzip/commit/0ba424c48ac35922e6a6c2639b62ca2e49613864))
+* **deps:** update module github.com/klauspost/compress to v1.19.0 ([#474](https://github.com/bodgit/sevenzip/issues/474)) ([9dddc71](https://github.com/bodgit/sevenzip/commit/9dddc718f94f9f34e4382a0a8923efa5d5e66c93))
+* **deps:** update module github.com/pierrec/lz4/v4 to v4.1.27 ([#462](https://github.com/bodgit/sevenzip/issues/462)) ([f4764c5](https://github.com/bodgit/sevenzip/commit/f4764c59997cb819e06ae3f0f019c3ddf84d9127))
+* **deps:** update module github.com/stangelandcl/ppmd to v0.1.1 ([#459](https://github.com/bodgit/sevenzip/issues/459)) ([9ab6e10](https://github.com/bodgit/sevenzip/commit/9ab6e109dac62115ee8eb8a7c0319475e4a6e386))
+* **deps:** update module golang.org/x/sync to v0.22.0 ([#466](https://github.com/bodgit/sevenzip/issues/466)) ([d9d7777](https://github.com/bodgit/sevenzip/commit/d9d777733a22c5f4408d856bda97761979cbf19b))
+* **deps:** update module golang.org/x/text to v0.40.0 ([#467](https://github.com/bodgit/sevenzip/issues/467)) ([4271f9b](https://github.com/bodgit/sevenzip/commit/4271f9b1e23036ea5c5e8a6d371fabd0ecc9e646))
+* return EOF when buffer is empty ([#476](https://github.com/bodgit/sevenzip/issues/476)) ([b9f4edb](https://github.com/bodgit/sevenzip/commit/b9f4edb8a975656ee6d239b37598147db11a50f1))
+
 ## [1.6.4](https://github.com/bodgit/sevenzip/compare/v1.6.3...v1.6.4) (2026-05-22)
 
 
