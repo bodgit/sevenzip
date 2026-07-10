@@ -14,6 +14,7 @@ import (
 	"testing"
 	"testing/fstest"
 	"testing/iotest"
+	"time"
 
 	"github.com/bodgit/sevenzip"
 	"github.com/bodgit/sevenzip/internal/util"
@@ -434,27 +435,55 @@ func TestFS(t *testing.T) {
 	}
 }
 
-func TestRead(t *testing.T) {
+// TestBraRead is a separate test as the example archive cannot be added to
+// the existing test cases in TestOpenReader as it triggers an error in the
+// LZMA library which is unrelated to the bug that it is a test case for.
+// However extracting this one file is enough to demonstrate the bug and
+// validate the fix so it's here as a separate test.
+func TestBraRead(t *testing.T) {
 	t.Parallel()
 
-	r, err := sevenzip.OpenReader(filepath.Join("testdata", "eof-read.7z"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	eg := new(errgroup.Group)
 
-	defer func() {
-		if err := r.Close(); err != nil {
-			t.Fatal(err)
+	//nolint:wrapcheck
+	eg.Go(func() (err error) {
+		r, err := sevenzip.OpenReader(filepath.Join("testdata", "pr472.7z"))
+		if err != nil {
+			return err
 		}
+
+		defer func() {
+			err = errors.Join(err, r.Close())
+		}()
+
+		file, err := r.Open("Plug 1.2/Plug 1.2.exe")
+		if err != nil {
+			return err
+		}
+
+		defer func() {
+			err = errors.Join(err, file.Close())
+		}()
+
+		if _, err = io.ReadAll(file); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	done := make(chan error, 1)
+	go func() {
+		done <- eg.Wait()
 	}()
 
-	file, err := r.Open("Plug 1.2/Plug 1.2.exe")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = io.ReadAll(file)
-	if err != nil {
-		t.Fatal(err)
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timeout waiting for reader to complete")
 	}
 }
 
