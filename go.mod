@@ -3,19 +3,19 @@ module github.com/bodgit/sevenzip
 go 1.25.5
 
 require (
-	github.com/andybalholm/brotli v1.2.1
+	github.com/andybalholm/brotli v1.2.2
 	github.com/bodgit/plumbing v1.3.0
 	github.com/bodgit/windows v1.0.1
 	github.com/hashicorp/golang-lru/v2 v2.0.7
-	github.com/klauspost/compress v1.18.6
+	github.com/klauspost/compress v1.19.0
 	github.com/pierrec/lz4/v4 v4.1.27
 	github.com/spf13/afero v1.15.0
 	github.com/stangelandcl/ppmd v0.1.1
 	github.com/stretchr/testify v1.11.1
 	github.com/unxed/xz v0.1.8
 	go4.org v0.0.0-20260112195520-a5071408f32f
-	golang.org/x/sync v0.20.0
-	golang.org/x/text v0.37.0
+	golang.org/x/sync v0.22.0
+	golang.org/x/text v0.40.0
 )
 
 require (
