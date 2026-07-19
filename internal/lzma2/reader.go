@@ -2,13 +2,31 @@
 package lzma2
 
 import (
+	xz "github.com/unxed/xz"
 	"errors"
 	"fmt"
 	"io"
 
-	"github.com/ulikunitz/xz/lzma"
+	"github.com/unxed/xz/lzma"
 )
 
+type seekReaderAt interface {
+	io.ReaderAt
+	io.Seeker
+}
+
+func streamSizeBySeeking(s io.Seeker) (int64, error) {
+	curr, err := s.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return 0, err
+	}
+	size, err := s.Seek(0, io.SeekEnd)
+	if err != nil {
+		return 0, err
+	}
+	_, err = s.Seek(curr, io.SeekStart)
+	return size, err
+}
 type readCloser struct {
 	c io.Closer
 	r io.Reader
@@ -26,11 +44,18 @@ func (rc *readCloser) Close() error {
 		return errAlreadyClosed
 	}
 
-	if err := rc.c.Close(); err != nil {
-		return fmt.Errorf("lzma2: error closing: %w", err)
+	var errs []error
+	// Закрываем ридер из библиотеки xz, чтобы вернуть буферы в пул и остановить горутины
+	if closer, ok := rc.r.(io.Closer); ok {
+		errs = append(errs, closer.Close())
 	}
+	errs = append(errs, rc.c.Close())
 
 	rc.c, rc.r = nil, nil
+
+	if err := errors.Join(errs...); err != nil {
+		return fmt.Errorf("lzma2: error closing: %w", err)
+	}
 
 	return nil
 }
@@ -68,6 +93,30 @@ func NewReader(p []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, erro
 
 	if err := config.Verify(); err != nil {
 		return nil, fmt.Errorf("lzma2: error verifying config: %w", err)
+	}
+
+	// Try parallel decompression if the input is seekable
+	if sra, ok := readers[0].(seekReaderAt); ok {
+		currentOffset, err := sra.Seek(0, io.SeekCurrent)
+		if err == nil {
+			size, err := streamSizeBySeeking(sra)
+			if err == nil {
+				var rAt io.ReaderAt = sra
+				streamSize := size
+				if currentOffset > 0 {
+					rAt = io.NewSectionReader(sra, currentOffset, size-currentOffset)
+					streamSize = size - currentOffset
+				}
+				// Use the parallel reader from github.com/unxed/xz
+				pconfig := xz.ReaderConfig{DictCap: config.DictCap}
+				if pr, err := pconfig.NewParallelReader(rAt, streamSize); err == nil {
+					return &readCloser{
+						c: readers[0],
+						r: pr,
+					}, nil
+				}
+			}
+		}
 	}
 
 	lr, err := config.NewReader2(readers[0])
