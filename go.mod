@@ -12,7 +12,7 @@ require (
 	github.com/spf13/afero v1.15.0
 	github.com/stangelandcl/ppmd v0.1.1
 	github.com/stretchr/testify v1.11.1
-	github.com/ulikunitz/xz v0.5.15
+	github.com/ulikunitz/xz v0.5.16
 	go4.org v0.0.0-20260112195520-a5071408f32f
 	golang.org/x/sync v0.22.0
 	golang.org/x/text v0.40.0
