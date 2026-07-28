@@ -46,10 +46,12 @@ func (rc *readCloser) Close() error {
 	}
 
 	var errs []error
+
 	// We close the reader from the xz library to return the buffers to the pool and stop the goroutines
 	if closer, ok := rc.r.(io.Closer); ok {
 		errs = append(errs, closer.Close())
 	}
+
 	errs = append(errs, rc.c.Close())
 
 	rc.c, rc.r = nil, nil
@@ -72,6 +74,45 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 	}
 
 	return n, err
+}
+
+func tryParallelReader(config lzma.Reader2Config, readers []io.ReadCloser) (io.ReadCloser, bool) {
+	sra, ok := readers[0].(seekReaderAt)
+	if !ok {
+		return nil, false
+	}
+
+	currentOffset, err := sra.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return nil, false
+	}
+
+	size, err := streamSizeBySeeking(sra)
+	if err != nil {
+		return nil, false
+	}
+
+	var rAt io.ReaderAt = sra
+
+	streamSize := size
+
+	if currentOffset > 0 {
+		rAt = io.NewSectionReader(sra, currentOffset, size-currentOffset)
+		streamSize = size - currentOffset
+	}
+
+	// Use the parallel reader from github.com/unxed/xz
+	pconfig := xz.ReaderConfig{DictCap: config.DictCap}
+
+	pr, err := pconfig.NewParallelReader(rAt, streamSize)
+	if err != nil {
+		return nil, false
+	}
+
+	return &readCloser{
+		c: readers[0],
+		r: pr,
+	}, true
 }
 
 // NewReader returns a new LZMA2 io.ReadCloser.
@@ -97,27 +138,8 @@ func NewReader(p []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, erro
 	}
 
 	// Try parallel decompression if the input is seekable
-	if sra, ok := readers[0].(seekReaderAt); ok {
-		currentOffset, err := sra.Seek(0, io.SeekCurrent)
-		if err == nil {
-			size, err := streamSizeBySeeking(sra)
-			if err == nil {
-				var rAt io.ReaderAt = sra
-				streamSize := size
-				if currentOffset > 0 {
-					rAt = io.NewSectionReader(sra, currentOffset, size-currentOffset)
-					streamSize = size - currentOffset
-				}
-				// Use the parallel reader from github.com/unxed/xz
-				pconfig := xz.ReaderConfig{DictCap: config.DictCap}
-				if pr, err := pconfig.NewParallelReader(rAt, streamSize); err == nil {
-					return &readCloser{
-						c: readers[0],
-						r: pr,
-					}, nil
-				}
-			}
-		}
+	if pr, ok := tryParallelReader(config, readers); ok {
+		return pr, nil
 	}
 
 	lr, err := config.NewReader2(readers[0])
