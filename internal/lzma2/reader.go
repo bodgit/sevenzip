@@ -4,9 +4,9 @@ package lzma2
 import (
 	"errors"
 	"fmt"
-	xz "github.com/unxed/xz"
 	"io"
 
+	"github.com/unxed/xz"
 	"github.com/unxed/xz/lzma"
 )
 
@@ -18,14 +18,20 @@ type seekReaderAt interface {
 func streamSizeBySeeking(s io.Seeker) (int64, error) {
 	curr, err := s.Seek(0, io.SeekCurrent)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("seek current: %w", err)
 	}
+
 	size, err := s.Seek(0, io.SeekEnd)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("seek end: %w", err)
 	}
+
 	_, err = s.Seek(curr, io.SeekStart)
-	return size, err
+	if err != nil {
+		return size, fmt.Errorf("seek start: %w", err)
+	}
+
+	return size, nil
 }
 
 type readCloser struct {
