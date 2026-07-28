@@ -31,6 +31,7 @@ func (rc *readCloser) Close() error {
 	if closer, ok := rc.r.(io.Closer); ok {
 		errs = append(errs, closer.Close())
 	}
+
 	errs = append(errs, rc.c.Close())
 
 	rc.c, rc.r = nil, nil

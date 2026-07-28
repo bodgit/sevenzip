@@ -42,6 +42,7 @@ func TestNewReader(t *testing.T) {
 		t.Errorf("unexpected errInvalidProperties for valid property, got %v", err)
 	}
 }
+
 type mockSeekReaderAt struct {
 	io.Reader
 }

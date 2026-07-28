@@ -2,9 +2,9 @@
 package lzma2
 
 import (
-	xz "github.com/unxed/xz"
 	"errors"
 	"fmt"
+	xz "github.com/unxed/xz"
 	"io"
 
 	"github.com/unxed/xz/lzma"
@@ -27,6 +27,7 @@ func streamSizeBySeeking(s io.Seeker) (int64, error) {
 	_, err = s.Seek(curr, io.SeekStart)
 	return size, err
 }
+
 type readCloser struct {
 	c io.Closer
 	r io.Reader
