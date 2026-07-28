@@ -45,7 +45,7 @@ func (rc *readCloser) Close() error {
 	}
 
 	var errs []error
-	// Закрываем ридер из библиотеки xz, чтобы вернуть буферы в пул и остановить горутины
+	// We close the reader from the xz library to return the buffers to the pool and stop the goroutines
 	if closer, ok := rc.r.(io.Closer); ok {
 		errs = append(errs, closer.Close())
 	}
