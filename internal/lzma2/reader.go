@@ -6,8 +6,33 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/ulikunitz/xz/lzma"
+	"github.com/unxed/xz"
+	"github.com/unxed/xz/lzma"
 )
+
+type seekReaderAt interface {
+	io.ReaderAt
+	io.Seeker
+}
+
+func streamSizeBySeeking(s io.Seeker) (int64, error) {
+	curr, err := s.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return 0, fmt.Errorf("seek current: %w", err)
+	}
+
+	size, err := s.Seek(0, io.SeekEnd)
+	if err != nil {
+		return 0, fmt.Errorf("seek end: %w", err)
+	}
+
+	_, err = s.Seek(curr, io.SeekStart)
+	if err != nil {
+		return size, fmt.Errorf("seek start: %w", err)
+	}
+
+	return size, nil
+}
 
 type readCloser struct {
 	c io.Closer
@@ -26,11 +51,20 @@ func (rc *readCloser) Close() error {
 		return errAlreadyClosed
 	}
 
-	if err := rc.c.Close(); err != nil {
-		return fmt.Errorf("lzma2: error closing: %w", err)
+	var errs []error
+
+	// We close the reader from the xz library to return the buffers to the pool and stop the goroutines
+	if closer, ok := rc.r.(io.Closer); ok {
+		errs = append(errs, closer.Close())
 	}
 
+	errs = append(errs, rc.c.Close())
+
 	rc.c, rc.r = nil, nil
+
+	if err := errors.Join(errs...); err != nil {
+		return fmt.Errorf("lzma2: error closing: %w", err)
+	}
 
 	return nil
 }
@@ -46,6 +80,45 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 	}
 
 	return n, err
+}
+
+func tryParallelReader(config lzma.Reader2Config, readers []io.ReadCloser) (io.ReadCloser, bool) {
+	sra, ok := readers[0].(seekReaderAt)
+	if !ok {
+		return nil, false
+	}
+
+	currentOffset, err := sra.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return nil, false
+	}
+
+	size, err := streamSizeBySeeking(sra)
+	if err != nil {
+		return nil, false
+	}
+
+	var rAt io.ReaderAt = sra
+
+	streamSize := size
+
+	if currentOffset > 0 {
+		rAt = io.NewSectionReader(sra, currentOffset, size-currentOffset)
+		streamSize = size - currentOffset
+	}
+
+	// Use the parallel reader from github.com/unxed/xz
+	pconfig := xz.ReaderConfig{DictCap: config.DictCap}
+
+	pr, err := pconfig.NewParallelReader(rAt, streamSize)
+	if err != nil {
+		return nil, false
+	}
+
+	return &readCloser{
+		c: readers[0],
+		r: pr,
+	}, true
 }
 
 // NewReader returns a new LZMA2 io.ReadCloser.
@@ -68,6 +141,11 @@ func NewReader(p []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, erro
 
 	if err := config.Verify(); err != nil {
 		return nil, fmt.Errorf("lzma2: error verifying config: %w", err)
+	}
+
+	// Try parallel decompression if the input is seekable
+	if pr, ok := tryParallelReader(config, readers); ok {
+		return pr, nil
 	}
 
 	lr, err := config.NewReader2(readers[0])
