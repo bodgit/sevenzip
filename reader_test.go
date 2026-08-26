@@ -311,6 +311,34 @@ func TestOpenReaderWithPassword(t *testing.T) {
 func TestOpenReaderWithWrongPassword(t *testing.T) {
 	t.Parallel()
 
+	t.Run("encrypted file does not return an empty success", func(t *testing.T) {
+		t.Parallel()
+
+		r, err := sevenzip.OpenReaderWithPassword(filepath.Join("testdata", "t4.7z"), "wrong-350")
+		require.NoError(t, err)
+
+		defer func() {
+			require.NoError(t, r.Close())
+		}()
+
+		require.NotEmpty(t, r.File)
+		rc, err := r.File[0].Open()
+		require.NoError(t, err)
+
+		defer func() {
+			require.NoError(t, rc.Close())
+		}()
+
+		contents, err := io.ReadAll(rc)
+		require.Error(t, err, "read %d bytes from an entry declaring %d bytes", len(contents), r.File[0].UncompressedSize)
+		assert.ErrorIs(t, err, io.ErrUnexpectedEOF)
+
+		var e *sevenzip.ReadError
+		if assert.ErrorAs(t, err, &e) {
+			assert.True(t, e.Encrypted)
+		}
+	})
+
 	t.Run("encrypted headers", func(t *testing.T) {
 		t.Parallel()
 
