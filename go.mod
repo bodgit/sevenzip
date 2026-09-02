@@ -11,7 +11,7 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.27
 	github.com/spf13/afero v1.15.0
 	github.com/stangelandcl/ppmd v0.1.1
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.1
 	github.com/ulikunitz/xz v0.5.15
 	go4.org v0.0.0-20260112195520-a5071408f32f
 	golang.org/x/sync v0.22.0
@@ -19,8 +19,6 @@ require (
 )
 
 require (
-	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/stretchr/objx v0.5.2 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
+	github.com/stretchr/objx v0.5.3 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 )
