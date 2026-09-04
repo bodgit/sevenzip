@@ -84,6 +84,6 @@ func NewReader(p []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, erro
 
 	return &readCloser{
 		rc:    readers[0],
-		delta: int(p[0] + 1),
+		delta: int(p[0]) + 1,
 	}, nil
 }
