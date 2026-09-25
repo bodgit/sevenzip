@@ -311,6 +311,34 @@ func TestOpenReaderWithPassword(t *testing.T) {
 func TestOpenReaderWithWrongPassword(t *testing.T) {
 	t.Parallel()
 
+	t.Run("encrypted file does not return an empty success", func(t *testing.T) {
+		t.Parallel()
+
+		r, err := sevenzip.OpenReaderWithPassword(filepath.Join("testdata", "t4.7z"), "wrong-350")
+		require.NoError(t, err)
+
+		defer func() {
+			require.NoError(t, r.Close())
+		}()
+
+		require.NotEmpty(t, r.File)
+		rc, err := r.File[0].Open()
+		require.NoError(t, err)
+
+		defer func() {
+			require.NoError(t, rc.Close())
+		}()
+
+		contents, err := io.ReadAll(rc)
+		require.ErrorIs(t, err, io.ErrUnexpectedEOF, "read %d bytes from an entry declaring %d bytes",
+			len(contents), r.File[0].UncompressedSize)
+
+		var e *sevenzip.ReadError
+		if assert.ErrorAs(t, err, &e) {
+			assert.True(t, e.Encrypted)
+		}
+	})
+
 	t.Run("encrypted headers", func(t *testing.T) {
 		t.Parallel()
 
@@ -465,11 +493,9 @@ func TestBraRead(t *testing.T) {
 			err = errors.Join(err, file.Close())
 		}()
 
-		if _, err = io.ReadAll(file); err != nil {
-			return err
-		}
+		_, err = io.ReadAll(file)
 
-		return nil
+		return err
 	})
 
 	done := make(chan error, 1)
@@ -479,8 +505,14 @@ func TestBraRead(t *testing.T) {
 
 	select {
 	case err := <-done:
-		if err != nil {
-			t.Fatal(err)
+		// pr472.7z is encrypted and is opened here without a password, so
+		// the entry cannot be decoded. The read has to end, and it has to
+		// end with an error rather than an empty success.
+		require.ErrorIs(t, err, io.ErrUnexpectedEOF)
+
+		var e *sevenzip.ReadError
+		if assert.ErrorAs(t, err, &e) {
+			assert.True(t, e.Encrypted)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatalf("timeout waiting for reader to complete")
