@@ -435,6 +435,25 @@ func TestFS(t *testing.T) {
 	}
 }
 
+func TestFSEmptyFile(t *testing.T) {
+	t.Parallel()
+
+	r, err := sevenzip.OpenReader(filepath.Join("testdata", "file_and_empty.7z"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() {
+		if err := r.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	if err := fstest.TestFS(r, "empty", "large"); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // TestBraRead is a separate test as the example archive cannot be added to
 // the existing test cases in TestOpenReader as it triggers an error in the
 // LZMA library which is unrelated to the bug that it is a test case for.

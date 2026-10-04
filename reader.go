@@ -148,8 +148,9 @@ func (fr *fileReader) Close() error {
 // contents. Multiple files may be read concurrently.
 func (f *File) Open() (io.ReadCloser, error) {
 	if f.isEmptyStream || f.isEmptyFile {
-		// Return empty reader for directory or empty file
-		return io.NopCloser(bytes.NewReader(nil)), nil
+		// Return empty reader for directory or empty file, it still needs
+		// to implement fs.File for Reader.Open
+		return &fileReader{f: f}, nil
 	}
 
 	rc, _ := f.zip.pool[f.folder].Get(f.offset)
