@@ -182,3 +182,58 @@ func TestFolderReader(t *testing.T) {
 		})
 	}
 }
+
+func TestReadCloserClosePool(t *testing.T) {
+	t.Parallel()
+
+	r, err := OpenReader(filepath.Join("testdata", "lzma1900.7z"))
+	require.NoError(t, err)
+
+	// Find two non-empty files in the same stream
+	var f1, f2 *File
+
+	seen := make(map[int]*File)
+
+	for _, f := range r.File {
+		if f.UncompressedSize == 0 {
+			continue
+		}
+
+		if prev, ok := seen[f.Stream]; ok {
+			f1, f2 = prev, f
+
+			break
+		}
+
+		seen[f.Stream] = f
+	}
+
+	require.NotNil(t, f2)
+
+	// Open the later file first so it doesn't reuse the pooled reader
+	rc2, err := f2.Open()
+	require.NoError(t, err)
+
+	_, err = io.ReadFull(rc2, make([]byte, 1))
+	require.NoError(t, err)
+
+	// Partially read the earlier file, closing it adds its reader to the pool
+	rc1, err := f1.Open()
+	require.NoError(t, err)
+
+	_, err = io.ReadFull(rc1, make([]byte, 1))
+	require.NoError(t, err)
+	require.NoError(t, rc1.Close())
+
+	require.NoError(t, r.Close())
+
+	// Closing the archive should close and empty the pool
+	_, ok := r.pool[f1.folder].Get(f1.offset + 1)
+	assert.False(t, ok)
+
+	// Closing a file after the archive shouldn't add its reader to the pool
+	require.NoError(t, rc2.Close())
+
+	_, ok = r.pool[f2.folder].Get(f2.offset + 1)
+	assert.False(t, ok)
+}
