@@ -171,7 +171,7 @@ func (f *File) Open() (io.ReadCloser, error) {
 
 	if _, err := rc.Seek(f.offset, io.SeekStart); err != nil {
 		e := &ReadError{
-			Err: err,
+			Err: errors.Join(err, rc.Close()),
 		}
 
 		if fr, ok := rc.(*folderReadCloser); ok {
@@ -594,8 +594,14 @@ func (rc *ReadCloser) Volumes() []string {
 }
 
 // Close closes the 7-zip file or volumes, rendering them unusable for I/O.
+// Any readers kept for reuse by [File.Open] are also closed.
 func (rc *ReadCloser) Close() error {
-	errs := make([]error, 0, len(rc.f))
+	errs := make([]error, 0, len(rc.pool)+len(rc.f))
+
+	// Close any pooled readers first as they read from the files
+	for _, p := range rc.pool {
+		errs = append(errs, p.Close())
+	}
 
 	for _, f := range rc.f {
 		errs = append(errs, f.Close())
