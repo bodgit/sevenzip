@@ -54,7 +54,9 @@ func calculateKey(password string, cycles int, salt []byte) ([]byte, error) {
 		return key, nil
 	}
 
-	b := bytes.NewBuffer(salt)
+	// Copy the salt, it's a subslice of the coder properties so appending
+	// the password would otherwise overwrite the IV that follows it
+	b := bytes.NewBuffer(bytes.Clone(salt))
 
 	// Convert password to UTF-16LE
 	utf16le := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
