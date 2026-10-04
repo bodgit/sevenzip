@@ -77,3 +77,31 @@ func TestPassword(t *testing.T) {
 		})
 	}
 }
+
+func TestPasswordDoesNotModifyProperties(t *testing.T) {
+	t.Parallel()
+
+	// Standard cycles, no salt, 16 byte IV. Allocate with cap == len, as
+	// the header parser does, so the salt subslice has capacity covering
+	// the IV
+	p := make([]byte, 2+16)
+	p[0], p[1] = 0x40|19, 0x0f
+	copy(p[2:], bytes.Repeat([]byte{0xaa}, 16))
+
+	want := bytes.Clone(p)
+
+	rc, err := aes7z.NewReader(p, 0, []io.ReadCloser{io.NopCloser(bytes.NewReader(nil))})
+	require.NoError(t, err)
+
+	defer func() {
+		require.NoError(t, rc.Close())
+	}()
+
+	ps, ok := rc.(passwordSetter)
+	require.True(t, ok)
+
+	// Use a password unique to this test so the key cache is missed and
+	// the key is always derived
+	require.NoError(t, ps.Password("pw1"))
+	assert.Equal(t, want, p)
+}
