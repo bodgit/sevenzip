@@ -57,6 +57,9 @@ var (
 	errInvalidBindPair        = errors.New("sevenzip: invalid bind pair")
 	errStreamMismatch         = errors.New("sevenzip: number of files and streams do not match")
 	errMissingSubStreamSizes  = errors.New("sevenzip: missing substream sizes")
+	errInvalidPackedStream    = errors.New("sevenzip: invalid packed stream")
+	errMissingPackInfo        = errors.New("sevenzip: missing pack info")
+	errPackStreamMismatch     = errors.New("sevenzip: number of folder and pack streams do not match")
 )
 
 func checkUint64(v uint64, nonZero bool) error {
@@ -363,6 +366,10 @@ func readFolder(r util.Reader) (*folder, error) {
 			return nil, err
 		}
 
+		if in >= f.in || out >= f.out {
+			return nil, errInvalidBindPair
+		}
+
 		f.bindPair = append(f.bindPair, &bindPair{
 			in:  in,
 			out: out,
@@ -385,6 +392,14 @@ func readFolder(r util.Reader) (*folder, error) {
 				return nil, err
 			}
 		}
+	}
+
+	// Each packed stream must be an input, and there must be exactly the
+	// expected number of them otherwise the pack sizes will be misread
+	if uint64(len(f.packed)) != f.packedStreams || slices.ContainsFunc(f.packed, func(i uint64) bool {
+		return i >= f.in
+	}) {
+		return nil, errInvalidPackedStream
 	}
 
 	return f, nil
@@ -626,7 +641,34 @@ func readStreamsInfo(r util.Reader) (*streamsInfo, error) {
 		return nil, errUnexpectedID
 	}
 
+	if err := s.checkPackStreams(); err != nil {
+		return nil, err
+	}
+
 	return s, nil
+}
+
+// checkPackStreams ensures there is exactly one pack stream with a size for
+// each packed stream across all of the folders.
+func (si *streamsInfo) checkPackStreams() error {
+	if si.unpackInfo == nil {
+		return nil
+	}
+
+	var streams uint64
+	for _, f := range si.unpackInfo.folder {
+		streams += f.packedStreams
+	}
+
+	if si.packInfo == nil || si.packInfo.size == nil {
+		return errMissingPackInfo
+	}
+
+	if streams != uint64(len(si.packInfo.size)) {
+		return errPackStreamMismatch
+	}
+
+	return nil
 }
 
 func readTimes(r util.Reader, count uint64) ([]time.Time, error) {
