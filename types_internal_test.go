@@ -3,8 +3,10 @@ package sevenzip
 import (
 	"bufio"
 	"bytes"
+	"io"
 	"slices"
 	"testing"
+	"testing/iotest"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -134,4 +136,70 @@ func TestNewReaderIssue491(t *testing.T) {
 
 	_, err := NewReader(bytes.NewReader(data), int64(len(data)))
 	assert.ErrorIs(t, err, errStreamMismatch)
+}
+
+// shortReader returns at most one byte from each call to Read, as a
+// bufio.Reader can at the end of its buffer, or a decompressor can when
+// reading an encoded header.
+type shortReader struct {
+	io.Reader
+	io.ByteReader
+}
+
+func newShortReader(b []byte) *shortReader {
+	r := bytes.NewReader(b)
+
+	return &shortReader{iotest.OneByteReader(r), r}
+}
+
+func TestReadCoder(t *testing.T) {
+	t.Parallel()
+
+	tables := []struct {
+		name       string
+		coder      []byte
+		id         []byte
+		properties []byte
+		wantErr    error
+	}{
+		{
+			name:  "copy",
+			coder: []byte{0x01, 0x00},
+			id:    []byte{0x00},
+		},
+		{
+			name:       "lzma",
+			coder:      []byte{0x23, 0x03, 0x01, 0x01, 0x05, 0x5d, 0x00, 0x00, 0x10, 0x00},
+			id:         []byte{0x03, 0x01, 0x01},
+			properties: []byte{0x5d, 0x00, 0x00, 0x10, 0x00},
+		},
+		{
+			name:    "truncated id",
+			coder:   []byte{0x03, 0x03, 0x01},
+			wantErr: io.ErrUnexpectedEOF,
+		},
+		{
+			name:    "truncated properties",
+			coder:   []byte{0x23, 0x03, 0x01, 0x01, 0x05, 0x5d, 0x00},
+			wantErr: io.ErrUnexpectedEOF,
+		},
+	}
+
+	for _, table := range tables {
+		t.Run(table.name, func(t *testing.T) {
+			t.Parallel()
+
+			c, err := readCoder(newShortReader(table.coder))
+
+			if table.wantErr != nil {
+				assert.ErrorIs(t, err, table.wantErr)
+
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, table.id, c.id)
+			assert.Equal(t, table.properties, c.properties)
+		})
+	}
 }

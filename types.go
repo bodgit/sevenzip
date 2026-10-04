@@ -48,7 +48,6 @@ const (
 )
 
 var (
-	errIncompleteRead         = errors.New("sevenzip: incomplete read")
 	errUnexpectedID           = errors.New("sevenzip: unexpected id")
 	errMissingUnpackInfo      = errors.New("sevenzip: missing unpack info")
 	errWrongNumberOfFilenames = errors.New("sevenzip: wrong number of filenames")
@@ -265,7 +264,6 @@ func readPackInfo(r util.Reader) (*packInfo, error) {
 	return p, nil
 }
 
-//nolint:cyclop
 func readCoder(r util.Reader) (*coder, error) {
 	c := new(coder)
 
@@ -275,12 +273,8 @@ func readCoder(r util.Reader) (*coder, error) {
 	}
 
 	c.id = make([]byte, v&0xf)
-	if n, err := r.Read(c.id); err != nil || n != int(v&0xf) {
-		if err != nil {
-			return nil, fmt.Errorf("readCoder: Read error: %w", err)
-		}
-
-		return nil, errIncompleteRead
+	if _, err := io.ReadFull(r, c.id); err != nil {
+		return nil, fmt.Errorf("readCoder: ReadFull error: %w", err)
 	}
 
 	if v&0x10 != 0 {
@@ -304,12 +298,8 @@ func readCoder(r util.Reader) (*coder, error) {
 		}
 
 		c.properties = make([]byte, size)
-		if n, err := r.Read(c.properties); err != nil || uint64(n) != size { //nolint:gosec
-			if err != nil {
-				return nil, fmt.Errorf("readCoder: Read error: %w", err)
-			}
-
-			return nil, errIncompleteRead
+		if _, err := io.ReadFull(r, c.properties); err != nil {
+			return nil, fmt.Errorf("readCoder: ReadFull error: %w", err)
 		}
 	}
 
