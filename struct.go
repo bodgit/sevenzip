@@ -212,7 +212,7 @@ func (si *streamsInfo) Folders() int {
 
 func (si *streamsInfo) FileFolderAndSize(file int) (int, uint64, uint32) {
 	var (
-		folder  int
+		folder         = file // Without substreams, each folder is one file
 		streams uint64 = 1
 		crc     uint32
 	)
