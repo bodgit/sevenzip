@@ -9,6 +9,7 @@ import (
 	"io"
 	"math"
 	"math/bits"
+	"slices"
 	"time"
 
 	"github.com/bodgit/sevenzip/internal/util"
@@ -54,6 +55,8 @@ var (
 	errUint64NonZero          = errors.New("sevenzip: uint64 value must be non-zero")
 	errUint64TooLarge         = errors.New("sevenzip: uint64 value too large")
 	errInvalidBindPair        = errors.New("sevenzip: invalid bind pair")
+	errStreamMismatch         = errors.New("sevenzip: number of files and streams do not match")
+	errMissingSubStreamSizes  = errors.New("sevenzip: missing substream sizes")
 )
 
 func checkUint64(v uint64, nonZero bool) error {
@@ -520,6 +523,11 @@ func readSubStreamsInfo(r util.Reader, folder []*folder) (*subStreamsInfo, error
 		return nil, err
 	}
 
+	// Sizes are required if any folder has more than one stream
+	if id != idSize && slices.ContainsFunc(s.streams, func(v uint64) bool { return v > 1 }) {
+		return nil, errMissingSubStreamSizes
+	}
+
 	if id == idSize {
 		s.size = make([]uint64, files)
 		k := 0
@@ -939,8 +947,12 @@ func readHeader(r util.Reader) (*header, error) {
 		return nil, errUnexpectedID
 	}
 
-	if h.streamsInfo == nil || h.filesInfo == nil {
+	if h.filesInfo == nil {
 		return h, nil
+	}
+
+	if err := h.checkStreams(); err != nil {
+		return nil, err
 	}
 
 	j := 0
@@ -955,6 +967,37 @@ func readHeader(r util.Reader) (*header, error) {
 	}
 
 	return h, nil
+}
+
+// checkStreams ensures there is exactly one stream for each file that isn't
+// empty, so they can be safely mapped to each other.
+func (h *header) checkStreams() error {
+	var files uint64
+
+	for i := range h.filesInfo.file {
+		if !h.filesInfo.file[i].isEmptyStream {
+			files++
+		}
+	}
+
+	var streams uint64
+
+	switch si := h.streamsInfo; {
+	case si == nil || si.unpackInfo == nil:
+	case si.subStreamsInfo != nil:
+		for _, n := range si.subStreamsInfo.streams {
+			streams += n
+		}
+	default:
+		// Without substreams, each folder is a single stream
+		streams = uint64(len(si.unpackInfo.folder))
+	}
+
+	if files != streams {
+		return errStreamMismatch
+	}
+
+	return nil
 }
 
 func readEncodedHeader(r util.Reader) (*header, error) {
