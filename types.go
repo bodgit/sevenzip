@@ -809,7 +809,7 @@ func readAttributes(r util.Reader, count uint64) ([]uint32, error) {
 	return attributes, nil
 }
 
-//nolint:cyclop,funlen,gocognit,gocyclo
+//nolint:cyclop,funlen,gocognit
 func readFilesInfo(r util.Reader) (*filesInfo, error) {
 	f := new(filesInfo)
 
@@ -910,18 +910,54 @@ func readFilesInfo(r util.Reader) (*filesInfo, error) {
 			for i, a := range attributes {
 				f.file[i].Attributes = a
 			}
-		case idStartPos:
-			return nil, errors.New("sevenzip: TODO idStartPos") //nolint:err113
-		case idDummy:
-			if _, err := io.CopyN(io.Discard, r, int64(length)); err != nil { //nolint:gosec
-				return nil, fmt.Errorf("readFilesInfo: CopyN error: %w", err)
-			}
 		default:
-			return nil, errUnexpectedID
+			// Skip padding (idDummy), anti-items (idAnti), comments
+			// (idComment), start positions (idStartPos) and any
+			// properties that aren't recognised, as 7-Zip does
+			if err := skipProperty(r, length); err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	return f, nil
+}
+
+// skipProperty discards the data of a property that isn't needed.
+func skipProperty(r io.Reader, length uint64) error {
+	if err := checkUint64(length, false); err != nil {
+		return err
+	}
+
+	if _, err := io.CopyN(io.Discard, r, int64(length)); err != nil { //nolint:gosec
+		return fmt.Errorf("skipProperty: CopyN error: %w", err)
+	}
+
+	return nil
+}
+
+// readArchiveProperties skips over the archive properties, none of which are
+// currently defined, as 7-Zip does.
+func readArchiveProperties(r util.Reader) error {
+	for {
+		id, err := r.ReadByte()
+		if err != nil {
+			return fmt.Errorf("readArchiveProperties: ReadByte error: %w", err)
+		}
+
+		if id == idEnd {
+			return nil
+		}
+
+		length, err := readUint64(r)
+		if err != nil {
+			return err
+		}
+
+		if err := skipProperty(r, length); err != nil {
+			return err
+		}
+	}
 }
 
 //nolint:cyclop,funlen
@@ -934,13 +970,14 @@ func readHeader(r util.Reader) (*header, error) {
 	}
 
 	if id == idArchiveProperties {
-		/*
-			id, err = r.ReadByte()
-			if err != nil {
-				return nil, fmt.Errorf("readHeader: ReadByte error: %w", err)
-			}
-		*/
-		return nil, errors.New("sevenzip: TODO idArchiveProperties") //nolint:err113
+		if err := readArchiveProperties(r); err != nil {
+			return nil, err
+		}
+
+		id, err = r.ReadByte()
+		if err != nil {
+			return nil, fmt.Errorf("readHeader: ReadByte error: %w", err)
+		}
 	}
 
 	if id == idAdditionalStreamsInfo {
