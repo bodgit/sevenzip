@@ -100,6 +100,31 @@ func TestReadHeader(t *testing.T) {
 			}), 2),
 			wantErr: errMissingSubStreamSizes,
 		},
+		{
+			name: "substreams fill folder",
+			header: testHeader(slices.Concat(testPackInfo1, testUnpackInfo1, []byte{
+				idSubStreamsInfo, idNumUnpackStream, 0x02, idSize, 0x0a, idEnd,
+			}), 2),
+			sizes: []uint64{10, 0},
+		},
+		{
+			name: "substreams larger than folder",
+			header: testHeader(slices.Concat(testPackInfo1, testUnpackInfo1, []byte{
+				idSubStreamsInfo, idNumUnpackStream, 0x02, idSize, 0x14, idEnd,
+			}), 2),
+			wantErr: errSubStreamSizes,
+		},
+		{
+			// math.MaxUint64 + 2 wraps around to 1, which is smaller than
+			// the folder
+			name: "substream sizes overflow",
+			header: testHeader(slices.Concat(testPackInfo1, testUnpackInfo1, []byte{
+				idSubStreamsInfo, idNumUnpackStream, 0x03, idSize,
+				0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+				0x02, idEnd,
+			}), 3),
+			wantErr: errSubStreamSizes,
+		},
 	}
 
 	for _, table := range tables {

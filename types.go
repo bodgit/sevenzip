@@ -57,6 +57,7 @@ var (
 	errInvalidBindPair        = errors.New("sevenzip: invalid bind pair")
 	errStreamMismatch         = errors.New("sevenzip: number of files and streams do not match")
 	errMissingSubStreamSizes  = errors.New("sevenzip: missing substream sizes")
+	errSubStreamSizes         = errors.New("sevenzip: substream sizes exceed folder size")
 	errInvalidPackedStream    = errors.New("sevenzip: invalid packed stream")
 	errMissingPackInfo        = errors.New("sevenzip: missing pack info")
 	errPackStreamMismatch     = errors.New("sevenzip: number of folder and pack streams do not match")
@@ -492,7 +493,39 @@ func readUnpackInfo(r util.Reader) (*unpackInfo, error) {
 	return u, nil
 }
 
-//nolint:cyclop,funlen,gocognit
+// readSubStreamSizes appends the sizes of the n streams in a folder of the
+// given size to sizes. Only the first n-1 sizes are stored, the last is
+// whatever remains of the folder.
+func readSubStreamSizes(r util.Reader, sizes []uint64, n, folderSize uint64) ([]uint64, error) {
+	if n == 0 {
+		return sizes, nil
+	}
+
+	var total uint64
+
+	for range n - 1 {
+		size, err := readUint64(r)
+		if err != nil {
+			return nil, err
+		}
+
+		// Check the total doesn't overflow
+		if total+size < total {
+			return nil, errSubStreamSizes
+		}
+
+		total += size
+		sizes = append(sizes, size)
+	}
+
+	if total > folderSize {
+		return nil, errSubStreamSizes
+	}
+
+	return append(sizes, folderSize-total), nil
+}
+
+//nolint:cyclop,funlen
 func readSubStreamsInfo(r util.Reader, folder []*folder) (*subStreamsInfo, error) {
 	s := new(subStreamsInfo)
 
@@ -535,27 +568,12 @@ func readSubStreamsInfo(r util.Reader, folder []*folder) (*subStreamsInfo, error
 	}
 
 	if id == idSize {
-		s.size = make([]uint64, files)
-		k := 0
+		s.size = make([]uint64, 0, files)
 
 		for i := range s.streams {
-			if s.streams[i] == 0 {
-				continue
+			if s.size, err = readSubStreamSizes(r, s.size, s.streams[i], folder[i].unpackSize()); err != nil {
+				return nil, err
 			}
-
-			total := uint64(0)
-
-			for j := uint64(1); j < s.streams[i]; j++ {
-				if s.size[k], err = readUint64(r); err != nil {
-					return nil, err
-				}
-
-				total += s.size[k]
-				k++
-			}
-
-			s.size[k] = folder[i].unpackSize() - total
-			k++
 		}
 
 		id, err = r.ReadByte()
