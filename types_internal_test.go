@@ -203,3 +203,121 @@ func TestReadCoder(t *testing.T) {
 		})
 	}
 }
+
+func TestReadFilesInfo(t *testing.T) {
+	t.Parallel()
+
+	// A name property for a single file named "a", used to check parsing
+	// carries on correctly after a skipped property.
+	name := []byte{idName, 0x05, 0x00, 'a', 0x00, 0x00, 0x00}
+
+	tables := []struct {
+		name     string
+		property []byte
+		wantErr  error
+	}{
+		{
+			name:     "dummy",
+			property: []byte{idDummy, 0x02, 0x00, 0x00},
+		},
+		{
+			name:     "anti",
+			property: []byte{idAnti, 0x01, 0x80},
+		},
+		{
+			name:     "comment",
+			property: []byte{idComment, 0x03, 0x00, 'x', 0x00},
+		},
+		{
+			name: "start position",
+			// All defined, not external, one 64-bit value
+			property: []byte{idStartPos, 0x0a, 0x01, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
+		},
+		{
+			name:     "unknown",
+			property: []byte{0x30, 0x02, 0xaa, 0xbb},
+		},
+		{
+			name:     "length too large",
+			property: []byte{0x30, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+			wantErr:  errUint64TooLarge,
+		},
+		{
+			name:     "truncated",
+			property: []byte{0x30, 0x7f, 0xaa},
+			wantErr:  io.EOF,
+		},
+	}
+
+	for _, table := range tables {
+		t.Run(table.name, func(t *testing.T) {
+			t.Parallel()
+
+			b := slices.Concat([]byte{0x01}, table.property, name, []byte{idEnd})
+
+			f, err := readFilesInfo(bufio.NewReader(bytes.NewReader(b)))
+
+			if table.wantErr != nil {
+				assert.ErrorIs(t, err, table.wantErr)
+
+				return
+			}
+
+			require.NoError(t, err)
+			require.Len(t, f.file, 1)
+			assert.Equal(t, "a", f.file[0].Name)
+		})
+	}
+}
+
+func TestReadArchiveProperties(t *testing.T) {
+	t.Parallel()
+
+	tables := []struct {
+		name       string
+		properties []byte
+		wantErr    error
+	}{
+		{
+			name:       "none",
+			properties: []byte{idEnd},
+		},
+		{
+			name:       "two",
+			properties: []byte{0x20, 0x02, 0xaa, 0xbb, 0x21, 0x00, idEnd},
+		},
+		{
+			name:       "length too large",
+			properties: []byte{0x20, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+			wantErr:    errUint64TooLarge,
+		},
+		{
+			name:       "truncated",
+			properties: []byte{0x20, 0x7f, 0xaa},
+			wantErr:    io.EOF,
+		},
+	}
+
+	for _, table := range tables {
+		t.Run(table.name, func(t *testing.T) {
+			t.Parallel()
+
+			// The archive properties are followed by a valid header
+			// containing a single 10 byte file
+			b := slices.Concat([]byte{idArchiveProperties}, table.properties,
+				testHeader(slices.Concat(testPackInfo1, testUnpackInfo1), 1))
+
+			h, err := readHeader(bufio.NewReader(bytes.NewReader(b)))
+
+			if table.wantErr != nil {
+				assert.ErrorIs(t, err, table.wantErr)
+
+				return
+			}
+
+			require.NoError(t, err)
+			require.Len(t, h.filesInfo.file, 1)
+			assert.Equal(t, uint64(10), h.filesInfo.file[0].UncompressedSize)
+		})
+	}
+}
