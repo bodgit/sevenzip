@@ -204,6 +204,7 @@ func TestReadCoder(t *testing.T) {
 	}
 }
 
+//nolint:funlen
 func TestReadFilesInfo(t *testing.T) {
 	t.Parallel()
 
@@ -236,6 +237,30 @@ func TestReadFilesInfo(t *testing.T) {
 		{
 			name:     "unknown",
 			property: []byte{0x30, 0x02, 0xaa, 0xbb},
+		},
+		{
+			name:     "empty stream and file",
+			property: []byte{idEmptyStream, 0x01, 0x80, idEmptyFile, 0x01, 0x80},
+		},
+		{
+			name: "modified time",
+			// All defined, not external, one 64-bit time
+			property: []byte{idMTime, 0x0a, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		},
+		{
+			name: "attributes",
+			// All defined, not external, one 32-bit value
+			property: []byte{idWinAttributes, 0x06, 0x01, 0x00, 0x20, 0x00, 0x00, 0x00},
+		},
+		{
+			name:     "property longer than its data",
+			property: []byte{idWinAttributes, 0x07, 0x01, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00},
+			wantErr:  errPropertyLength,
+		},
+		{
+			name:     "property shorter than its data",
+			property: []byte{idWinAttributes, 0x05, 0x01, 0x00, 0x20, 0x00, 0x00, 0x00},
+			wantErr:  io.ErrUnexpectedEOF,
 		},
 		{
 			name:     "length too large",

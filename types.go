@@ -51,6 +51,7 @@ var (
 	errUnexpectedID           = errors.New("sevenzip: unexpected id")
 	errMissingUnpackInfo      = errors.New("sevenzip: missing unpack info")
 	errWrongNumberOfFilenames = errors.New("sevenzip: wrong number of filenames")
+	errPropertyLength         = errors.New("sevenzip: property length mismatch")
 	errUint64NonZero          = errors.New("sevenzip: uint64 value must be non-zero")
 	errUint64TooLarge         = errors.New("sevenzip: uint64 value too large")
 	errInvalidBindPair        = errors.New("sevenzip: invalid bind pair")
@@ -809,7 +810,7 @@ func readAttributes(r util.Reader, count uint64) ([]uint32, error) {
 	return attributes, nil
 }
 
-//nolint:cyclop,funlen,gocognit
+//nolint:cyclop,funlen,gocognit,gocyclo
 func readFilesInfo(r util.Reader) (*filesInfo, error) {
 	f := new(filesInfo)
 
@@ -832,10 +833,14 @@ func readFilesInfo(r util.Reader) (*filesInfo, error) {
 			break
 		}
 
-		length, err := readUint64(r)
+		length, err := readUint64Bounded(r, false)
 		if err != nil {
 			return nil, err
 		}
+
+		// Limit each property to its declared length so it can't
+		// read into the next one
+		r := &propertyReader{r: r, n: length}
 
 		switch property {
 		case idEmptyStream:
@@ -918,9 +923,50 @@ func readFilesInfo(r util.Reader) (*filesInfo, error) {
 				return nil, err
 			}
 		}
+
+		// As 7-Zip does, reject properties with unused data
+		if r.n != 0 {
+			return nil, errPropertyLength
+		}
 	}
 
 	return f, nil
+}
+
+// propertyReader limits reading to the declared length of a property.
+type propertyReader struct {
+	r util.Reader
+	n uint64
+}
+
+func (pr *propertyReader) Read(p []byte) (int, error) {
+	if pr.n == 0 {
+		return 0, io.EOF
+	}
+
+	if uint64(len(p)) > pr.n {
+		p = p[:pr.n]
+	}
+
+	n, err := pr.r.Read(p)
+	pr.n -= uint64(n) //nolint:gosec
+
+	return n, err //nolint:wrapcheck
+}
+
+func (pr *propertyReader) ReadByte() (byte, error) {
+	if pr.n == 0 {
+		return 0, io.EOF
+	}
+
+	b, err := pr.r.ReadByte()
+	if err != nil {
+		return 0, err //nolint:wrapcheck
+	}
+
+	pr.n--
+
+	return b, nil
 }
 
 // skipProperty discards the data of a property that isn't needed.
