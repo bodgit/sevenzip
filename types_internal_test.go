@@ -32,6 +32,15 @@ var (
 		0x01, 0x01, 0x00,
 		idCodersUnpackSize, 0x0a, 0x14, idEnd,
 	}
+	// One folder with two copy coders, the first coder's output is the
+	// folder's unbound output and unpacks to 10 bytes, the second coder
+	// feeds it and unpacks to 20 bytes.
+	testUnpackInfoReversed = []byte{
+		idUnpackInfo, idFolder, 0x01, 0x00,
+		0x02, 0x01, 0x00, 0x01, 0x00,
+		0x00, 0x01, // in 0, out 1
+		idCodersUnpackSize, 0x0a, 0x14, idEnd,
+	}
 )
 
 func testHeader(streamsInfo []byte, files byte) []byte {
@@ -62,6 +71,18 @@ func TestReadHeader(t *testing.T) {
 		{
 			name: "two files in one folder",
 			header: testHeader(slices.Concat(testPackInfo1, testUnpackInfo1, []byte{
+				idSubStreamsInfo, idNumUnpackStream, 0x02, idSize, 0x04, idEnd,
+			}), 2),
+			sizes: []uint64{4, 6},
+		},
+		{
+			name:   "unbound output from first coder",
+			header: testHeader(slices.Concat(testPackInfo1, testUnpackInfoReversed), 1),
+			sizes:  []uint64{10},
+		},
+		{
+			name: "unbound output from first coder with substreams",
+			header: testHeader(slices.Concat(testPackInfo1, testUnpackInfoReversed, []byte{
 				idSubStreamsInfo, idNumUnpackStream, 0x02, idSize, 0x04, idEnd,
 			}), 2),
 			sizes: []uint64{4, 6},

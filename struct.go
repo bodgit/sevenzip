@@ -237,7 +237,7 @@ func (si *streamsInfo) FileFolderAndSize(file int) (int, uint64, uint32) {
 			crc = si.unpackInfo.digest[folder]
 		}
 
-		return folder, si.unpackInfo.folder[folder].size[len(si.unpackInfo.folder[folder].coder)-1], crc
+		return folder, si.unpackInfo.folder[folder].unpackSize(), crc
 	}
 
 	return folder, si.subStreamsInfo.size[file], crc
