@@ -103,7 +103,15 @@ func (fr *fileReader) Read(p []byte) (int, error) {
 	n, err := fr.rc.Read(p)
 	fr.n -= int64(n)
 
-	if err != nil && !errors.Is(err, io.EOF) {
+	if errors.Is(err, io.EOF) {
+		if fr.n <= 0 {
+			return n, err //nolint:wrapcheck
+		}
+
+		err = io.ErrUnexpectedEOF
+	}
+
+	if err != nil {
 		e := &ReadError{
 			Err: err,
 		}
@@ -115,7 +123,7 @@ func (fr *fileReader) Read(p []byte) (int, error) {
 		return n, e
 	}
 
-	return n, err //nolint:wrapcheck
+	return n, nil
 }
 
 func (fr *fileReader) Close() error {
