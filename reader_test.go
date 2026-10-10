@@ -2,6 +2,7 @@ package sevenzip_test
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"hash"
@@ -479,6 +480,34 @@ func TestFSEmptyFile(t *testing.T) {
 	}()
 
 	if err := fstest.TestFS(r, "empty", "large"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestFSBackslashNames(t *testing.T) {
+	t.Parallel()
+
+	data, err := os.ReadFile(filepath.Join("testdata", "file_and_empty.7z"))
+	require.NoError(t, err)
+
+	data = bytes.ReplaceAll(data,
+		[]byte{'l', 0, 'a', 0, 'r', 0, 'g', 0, 'e', 0},
+		[]byte{'a', 0, '\\', 0, 'b', 0, 'i', 0, 'g', 0})
+	data = bytes.ReplaceAll(data,
+		[]byte{'e', 0, 'm', 0, 'p', 0, 't', 0, 'y', 0},
+		[]byte{'b', 0, '\\', 0, 'n', 0, 'i', 0, 'l', 0})
+
+	headerOffset := 32 + binary.LittleEndian.Uint64(data[12:20])
+	headerSize := binary.LittleEndian.Uint64(data[20:28])
+	binary.LittleEndian.PutUint32(data[28:32], crc32.ChecksumIEEE(data[headerOffset:headerOffset+headerSize]))
+	binary.LittleEndian.PutUint32(data[8:12], crc32.ChecksumIEEE(data[12:32]))
+
+	r, err := sevenzip.NewReader(bytes.NewReader(data), int64(len(data)))
+	require.NoError(t, err)
+	require.Equal(t, `a\big`, r.File[0].Name)
+	require.Equal(t, `b\nil`, r.File[1].Name)
+
+	if err := fstest.TestFS(r, "a/big", "b/nil"); err != nil {
 		t.Fatal(err)
 	}
 }

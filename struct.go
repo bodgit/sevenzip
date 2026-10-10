@@ -375,7 +375,7 @@ type headerFileInfo struct {
 	fh *FileHeader
 }
 
-func (fi headerFileInfo) Name() string        { return path.Base(fi.fh.Name) }
+func (fi headerFileInfo) Name() string        { return path.Base(toValidName(fi.fh.Name)) }
 func (fi headerFileInfo) Size() int64         { return int64(fi.fh.UncompressedSize) } //nolint:gosec
 func (fi headerFileInfo) IsDir() bool         { return fi.Mode().IsDir() }
 func (fi headerFileInfo) ModTime() time.Time  { return fi.fh.Modified.UTC() }
