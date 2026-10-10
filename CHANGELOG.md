@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.6.6](https://github.com/bodgit/sevenzip/compare/v1.6.5...v1.6.6) (2026-10-10)
+
+
+### Bug Fixes
+
+* **aes7z:** don't corrupt coder properties when deriving key ([#492](https://github.com/bodgit/sevenzip/issues/492)) ([8646b57](https://github.com/bodgit/sevenzip/commit/8646b57708f56f422b0621980b140e4aa553ab48)), closes [#489](https://github.com/bodgit/sevenzip/issues/489)
+* close pooled readers instead of leaking them ([#500](https://github.com/bodgit/sevenzip/issues/500)) ([06850d6](https://github.com/bodgit/sevenzip/commit/06850d6ba5efd81cae8e13fb2323427d474b5d7c))
+* **delta:** compute the distance in int, not byte ([#488](https://github.com/bodgit/sevenzip/issues/488)) ([7022531](https://github.com/bodgit/sevenzip/commit/7022531b805060941d0b2e2a027c8ab198697629))
+* **deps:** update module github.com/andybalholm/brotli to v1.2.6 ([#487](https://github.com/bodgit/sevenzip/issues/487)) ([6b58477](https://github.com/bodgit/sevenzip/commit/6b584777863d43dce88708fa3f9d92b5f9dba6c8))
+* **deps:** update module github.com/klauspost/compress to v1.20.1 ([#495](https://github.com/bodgit/sevenzip/issues/495)) ([504ac9d](https://github.com/bodgit/sevenzip/commit/504ac9db87266974ee4a86a7ee45c9f488b2039a))
+* **deps:** update module github.com/pierrec/lz4/v4 to v4.1.33 ([#483](https://github.com/bodgit/sevenzip/issues/483)) ([4e7fae1](https://github.com/bodgit/sevenzip/commit/4e7fae118c41af006be2fbc636e725791260a076))
+* **deps:** update module github.com/stretchr/testify to v1.12.1 ([#485](https://github.com/bodgit/sevenzip/issues/485)) ([ef03921](https://github.com/bodgit/sevenzip/commit/ef039218056cb878d2baf6bb67a7c038bbee3ea5))
+* **deps:** update module github.com/ulikunitz/xz to v0.5.17 ([#481](https://github.com/bodgit/sevenzip/issues/481)) ([dc355fe](https://github.com/bodgit/sevenzip/commit/dc355fec09d5e4685efb43602813b60fe1e88743))
+* **deps:** update module golang.org/x/text to v0.42.0 ([#484](https://github.com/bodgit/sevenzip/issues/484)) ([a671211](https://github.com/bodgit/sevenzip/commit/a6712110ff3e87b7cb5d443098368a3af1a7fe29))
+* **deps:** update module golang.org/x/text to v0.43.0 ([#509](https://github.com/bodgit/sevenzip/issues/509)) ([51ab032](https://github.com/bodgit/sevenzip/commit/51ab0325477099a742bad5e73ac60a03bb8ec301))
+* don't panic opening empty files via fs.FS ([#494](https://github.com/bodgit/sevenzip/issues/494)) ([52d4702](https://github.com/bodgit/sevenzip/commit/52d47029766a5af7354fb7ca553db78a0259116b))
+* enforce the declared length of file properties ([#505](https://github.com/bodgit/sevenzip/issues/505)) ([2aa341f](https://github.com/bodgit/sevenzip/commit/2aa341f2a2996bd2095e2fad5139f26917e7238d))
+* fail reads that end before the declared entry size ([#490](https://github.com/bodgit/sevenzip/issues/490)) ([c70203a](https://github.com/bodgit/sevenzip/commit/c70203a031247229f0b8e0e5a8856cc1ddbb0d7d))
+* handle short reads of coder id and properties ([#499](https://github.com/bodgit/sevenzip/issues/499)) ([01afc7b](https://github.com/bodgit/sevenzip/commit/01afc7b541ead0feba8166bc9beabf44f860ee4a))
+* reject substream sizes larger than their folder ([#503](https://github.com/bodgit/sevenzip/issues/503)) ([d5ef572](https://github.com/bodgit/sevenzip/commit/d5ef57219996f5482c17df0ddaaeda675362f8e0))
+* skip unknown file and archive properties ([#501](https://github.com/bodgit/sevenzip/issues/501)) ([3772d7a](https://github.com/bodgit/sevenzip/commit/3772d7a7bd60efe36803cc7659f5a90168a184d1))
+* use the unbound output for a folder's file size ([#504](https://github.com/bodgit/sevenzip/issues/504)) ([e793b75](https://github.com/bodgit/sevenzip/commit/e793b7560cca8ddd1db1d2b4ca0543ae818d2e74))
+* validate file and stream counts in header ([#497](https://github.com/bodgit/sevenzip/issues/497)) ([8dccb92](https://github.com/bodgit/sevenzip/commit/8dccb92519895456e894d9bc2dbeff50cceeeaa3)), closes [#491](https://github.com/bodgit/sevenzip/issues/491)
+* validate pack streams and folder indices in header ([#498](https://github.com/bodgit/sevenzip/issues/498)) ([4241874](https://github.com/bodgit/sevenzip/commit/4241874099e0b404a5dbcc28e81702924da88449))
+
 ## [1.6.5](https://github.com/bodgit/sevenzip/compare/v1.6.4...v1.6.5) (2026-07-10)
 
 
