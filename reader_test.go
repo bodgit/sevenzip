@@ -308,6 +308,7 @@ func TestOpenReaderWithPassword(t *testing.T) {
 	}
 }
 
+//nolint:funlen
 func TestOpenReaderWithWrongPassword(t *testing.T) {
 	t.Parallel()
 

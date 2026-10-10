@@ -123,7 +123,7 @@ func (fr *fileReader) Read(p []byte) (int, error) {
 		return n, e
 	}
 
-	return n, err //nolint:wrapcheck
+	return n, nil
 }
 
 func (fr *fileReader) Close() error {
