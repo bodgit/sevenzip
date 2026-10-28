@@ -13,7 +13,7 @@ require (
 	github.com/stangelandcl/ppmd v0.1.1
 	github.com/stretchr/testify v1.12.1
 	github.com/ulikunitz/xz v0.5.17
-	go4.org v0.0.0-20260112195520-a5071408f32f
+	go4.org v0.0.0-20261028031214-ed6929a230fe
 	golang.org/x/sync v0.24.0
 	golang.org/x/text v0.43.0
 )
